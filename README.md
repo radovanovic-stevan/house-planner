@@ -34,7 +34,19 @@ Plans are saved as JSON files in the project's `plans/` folder, so they can be c
 - **Save as…** (`⌘S` on an unnamed plan) names the plan and writes `plans/<name>.json`. After that, every change autosaves to that file. The toolbar shows the plan's name and whether it's saved.
 - **Open…** lists the plans in `plans/`. It can also import or download a `.json` file.
 - On startup the app reopens the last plan from its file, so changes from `git pull` show up.
-- Saving to the project goes through the dev server (`npm run dev` or `npm run preview`). In a static build, Save as… downloads a file instead.
+- Saving to the project goes through the dev server (`npm run dev` or `npm run preview`).
+
+## GitHub Pages
+
+Every push to `main` deploys to https://radovanovic-stevan.github.io/house-planner/ (see `.github/workflows/deploy.yml`).
+
+The hosted site can't write to the repo, so plans work differently there:
+
+- Plans committed in `plans/` are published with the site. **Open…** lists them, and opening one gives an editable copy that is kept in that browser.
+- On a first visit, the most recently committed plan opens automatically.
+- **Download** saves the current plan as a `.json` file.
+
+To publish a plan, save it locally with `npm run dev`, then commit and push the file in `plans/`.
 
 ## Code map
 

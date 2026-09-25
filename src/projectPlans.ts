@@ -1,7 +1,11 @@
 import { normalizePlan, type Plan } from './model';
 import type { Store } from './store';
 
-/** Client for the dev server's `plans/` folder API (see vite.config.ts). */
+/**
+ * Access to the project's `plans/` folder. Under the dev server it's read/write through
+ * /api/plans (see vite.config.ts); a static build (GitHub Pages) ships a read-only copy
+ * in plans/ next to index.html.
+ */
 
 export interface PlanEntry {
   name: string;
@@ -10,14 +14,40 @@ export interface PlanEntry {
 
 export const PLAN_NAME_RE = /^[\w\- ]{1,80}$/;
 
-let available: Promise<boolean> | null = null;
+/**
+ * - `project`: dev server; plans are read and written in the project folder.
+ * - `published`: static deploy; plans committed to the repo can be opened, not saved.
+ * - `none`: neither (e.g. a static build with no plans); plans live in the browser only.
+ */
+export type PlansMode = 'project' | 'published' | 'none';
 
-/** Whether the plans API exists (it does under `npm run dev` / `npm run preview`, not in a static build). */
-export function plansApiAvailable(): Promise<boolean> {
-  available ??= fetch('/api/plans')
-    .then((r) => r.ok && (r.headers.get('content-type') ?? '').includes('json'))
-    .catch(() => false);
-  return available;
+const PUBLISHED_DIR = `${import.meta.env.BASE_URL}plans/`;
+
+const fetchJson = async (url: string) => {
+  const r = await fetch(url);
+  if (!r.ok || !(r.headers.get('content-type') ?? '').includes('json')) throw new Error(`${url}: ${r.status}`);
+  return r.json();
+};
+
+let mode: Promise<PlansMode> | null = null;
+
+export function detectPlansMode(): Promise<PlansMode> {
+  mode ??= fetchJson('/api/plans')
+    .then(() => 'project' as const)
+    .catch(() =>
+      fetchJson(`${PUBLISHED_DIR}index.json`)
+        .then(() => 'published' as const)
+        .catch(() => 'none' as const),
+    );
+  return mode;
+}
+
+export async function listPublishedPlans(): Promise<PlanEntry[]> {
+  return fetchJson(`${PUBLISHED_DIR}index.json`);
+}
+
+export async function loadPublishedPlan(name: string): Promise<Plan> {
+  return normalizePlan(await fetchJson(`${PUBLISHED_DIR}${encodeURIComponent(name)}.json`));
 }
 
 export async function listPlans(): Promise<PlanEntry[]> {

@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs/promises';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import path from 'node:path';
@@ -12,6 +13,9 @@ const NAME_RE = /^[\w\- ]{1,80}$/;
  *   GET  /api/plans         -> [{ name, updated }]
  *   GET  /api/plans/:name   -> plan JSON
  *   PUT  /api/plans/:name   <- plan JSON
+ *
+ * A production build also copies the plans into dist/plans/ with an index.json, so a
+ * static deploy (GitHub Pages) can browse them read-only.
  */
 function plansApi(): Plugin {
   let dir = '';
@@ -70,10 +74,41 @@ function plansApi(): Plugin {
     }
   };
 
+  /** Last commit time of a file (ms), falling back to its mtime outside git. */
+  const updatedAt = async (file: string) => {
+    try {
+      const out = execFileSync('git', ['log', '-1', '--format=%ct', '--', file], { cwd: dir, encoding: 'utf8' }).trim();
+      if (out) return Number(out) * 1000;
+    } catch {
+      /* not a git checkout */
+    }
+    return (await fs.stat(file)).mtimeMs;
+  };
+
   return {
     name: 'plans-api',
     configResolved(config) {
       dir = path.resolve(config.root, 'plans');
+    },
+    async generateBundle() {
+      const files = await fs.readdir(dir).catch(() => [] as string[]);
+      const index: { name: string; updated: number }[] = [];
+      for (const f of files) {
+        const name = f.slice(0, -5);
+        if (!f.endsWith('.json') || !NAME_RE.test(name)) continue;
+        const file = path.join(dir, f);
+        const source = await fs.readFile(file, 'utf8');
+        try {
+          JSON.parse(source);
+        } catch {
+          this.warn(`skipping ${f}: not valid JSON`);
+          continue;
+        }
+        this.emitFile({ type: 'asset', fileName: `plans/${f}`, source });
+        index.push({ name, updated: await updatedAt(file) });
+      }
+      index.sort((a, b) => b.updated - a.updated);
+      this.emitFile({ type: 'asset', fileName: 'plans/index.json', source: JSON.stringify(index) });
     },
     configureServer(server) {
       server.middlewares.use(handler);
@@ -85,6 +120,8 @@ function plansApi(): Plugin {
 }
 
 export default defineConfig({
+  // relative asset paths, so the build works under any sub-path (e.g. /house-planner/ on GitHub Pages)
+  base: './',
   plugins: [plansApi()],
   server: {
     // saving a plan shouldn't trigger a page reload

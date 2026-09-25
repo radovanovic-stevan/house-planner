@@ -4,7 +4,16 @@ import { examplePlan } from './example';
 import { emptyPlan, normalizePlan, type Plan } from './model';
 import { deleteSelection } from './ops';
 import { Panel } from './panel';
-import { listPlans, loadPlan, PLAN_NAME_RE, plansApiAvailable, ProjectAutosave } from './projectPlans';
+import {
+  detectPlansMode,
+  listPlans,
+  listPublishedPlans,
+  loadPlan,
+  loadPublishedPlan,
+  PLAN_NAME_RE,
+  ProjectAutosave,
+  type PlansMode,
+} from './projectPlans';
 import { Store, type Tool, type ViewMode } from './store';
 import { View3D } from './view3d';
 
@@ -49,20 +58,27 @@ $('#undo').addEventListener('click', () => store.undo());
 $('#redo').addEventListener('click', () => store.redo());
 $('#fit').addEventListener('click', () => (store.ui.view === '2d' ? editor.zoomToFit() : view3d.frame(false)));
 
-// ---------- plans: saved as files in the project's plans/ folder ----------
+// ---------- plans ----------
+// Under the dev server, plans are files in the project's plans/ folder and autosave there.
+// On a static deploy (GitHub Pages), plans committed to the repo can be opened as an
+// editable copy that lives in the browser; Save as… downloads a file.
 
 const autosave = new ProjectAutosave(store);
 const planLabel = $('#plan-name');
-let apiAvailable = false;
+const saveAsButton = $<HTMLButtonElement>('#save-as');
+let mode: PlansMode = 'none';
+/** On a static deploy: the published plan the browser copy was opened from. */
+let publishedFrom: string | null = null;
 
 function syncPlanLabel() {
-  if (!apiAvailable) {
-    planLabel.hidden = true;
+  const name = store.planName;
+  if (mode !== 'project') {
+    planLabel.className = 'plan-name';
+    planLabel.textContent = publishedFrom ? `${publishedFrom} · browser copy` : 'Saved in this browser';
+    planLabel.title = 'Changes are kept in this browser. Use Download to keep a file.';
     return;
   }
-  const name = store.planName;
   const state = autosave.state;
-  planLabel.hidden = false;
   planLabel.className = `plan-name ${name ? state : 'unsaved'}`;
   planLabel.textContent = !name
     ? 'Unsaved plan'
@@ -76,10 +92,11 @@ function syncPlanLabel() {
 autosave.onChange = syncPlanLabel;
 store.subscribe(syncPlanLabel);
 
-/** True if it's fine to replace the current plan. Named plans are already saved to disk. */
+/** True if it's fine to replace the current plan. Named project plans are already on disk. */
 function okToDiscard(what: string) {
-  if (store.planName || !store.plan.walls.length) return true;
-  return confirm(`${what}? The current plan hasn't been saved and will be lost.`);
+  if ((mode === 'project' && store.planName) || (!store.plan.walls.length && !store.plan.furniture.length)) return true;
+  const where = mode === 'project' ? "hasn't been saved" : 'is only kept in this browser';
+  return confirm(`${what}? The current plan ${where} and will be replaced.`);
 }
 
 function openPlan(plan: Plan, name: string | null) {
@@ -92,13 +109,13 @@ function download() {
   const blob = new Blob([JSON.stringify(store.plan, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `${store.planName ?? 'house-plan'}.json`;
+  a.download = `${store.planName ?? publishedFrom ?? 'house-plan'}.json`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
 async function saveAs() {
-  if (!apiAvailable) return download();
+  if (mode !== 'project') return download();
   const name = prompt('Save plan as (letters, numbers, spaces, - and _):', store.planName ?? 'My house')?.trim();
   if (!name) return;
   if (!PLAN_NAME_RE.test(name)) return alert('Please use only letters, numbers, spaces, - and _.');
@@ -112,42 +129,60 @@ async function saveAs() {
 
 $('#new').addEventListener('click', () => {
   if (!okToDiscard('Start a new plan')) return;
+  publishedFrom = null;
   store.replacePlan(emptyPlan(), null);
   store.setUi({ tool: 'wall' });
 });
 $('#example').addEventListener('click', () => {
   if (!okToDiscard('Load the example house')) return;
+  publishedFrom = null;
   openPlan(examplePlan(), null);
 });
-$('#save-as').addEventListener('click', saveAs);
+saveAsButton.addEventListener('click', saveAs);
+
+async function openPublished(name: string) {
+  const plan = await loadPublishedPlan(name).catch(() => null);
+  if (!plan) return alert(`Could not open "${name}".`);
+  publishedFrom = name;
+  openPlan(plan, null);
+}
 
 const openDialog = $<HTMLDialogElement>('#open-dialog');
 const planList = $('#plan-list');
 $('#open').addEventListener('click', async () => {
   planList.innerHTML = '';
-  if (!apiAvailable) {
-    planList.innerHTML = '<li class="empty">Saving to the project needs the dev server (<code>npm run dev</code>).</li>';
-  } else {
-    const plans = await listPlans().catch(() => []);
-    if (!plans.length) planList.innerHTML = '<li class="empty">No saved plans yet. Use "Save as…" to add one.</li>';
-    for (const p of plans) {
-      const li = document.createElement('li');
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.innerHTML = '<b></b><span></span>';
-      b.querySelector('b')!.textContent = p.name;
-      b.querySelector('span')!.textContent = new Date(p.updated).toLocaleString();
-      if (p.name === store.planName) b.classList.add('active');
-      b.addEventListener('click', async () => {
-        if (!okToDiscard(`Open "${p.name}"`)) return;
-        const plan = await loadPlan(p.name).catch(() => null);
-        if (!plan) return alert(`Could not open "${p.name}".`);
+  $('#open-sub').innerHTML =
+    mode === 'project'
+      ? "Plans saved in the project's <code>plans/</code> folder"
+      : mode === 'published'
+        ? 'Plans published with this site. Opening one gives you an editable copy in this browser.'
+        : 'Plans are kept in this browser. Import a <code>.json</code> file to open one.';
+  const plans = mode === 'project' ? await listPlans().catch(() => []) : mode === 'published' ? await listPublishedPlans().catch(() => []) : [];
+  if (mode !== 'none' && !plans.length) {
+    planList.innerHTML = `<li class="empty">${mode === 'project' ? 'No saved plans yet. Use "Save as…" to add one.' : 'No plans have been published yet.'}</li>`;
+  }
+  planList.hidden = mode === 'none';
+  for (const p of plans) {
+    const li = document.createElement('li');
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.innerHTML = '<b></b><span></span>';
+    b.querySelector('b')!.textContent = p.name;
+    b.querySelector('span')!.textContent = new Date(p.updated).toLocaleString();
+    if (p.name === (mode === 'project' ? store.planName : publishedFrom)) b.classList.add('active');
+    b.addEventListener('click', async () => {
+      if (!okToDiscard(`Open "${p.name}"`)) return;
+      if (mode === 'published') {
         openDialog.close();
-        openPlan(plan, p.name);
-      });
-      li.append(b);
-      planList.append(li);
-    }
+        return openPublished(p.name);
+      }
+      const plan = await loadPlan(p.name).catch(() => null);
+      if (!plan) return alert(`Could not open "${p.name}".`);
+      openDialog.close();
+      openPlan(plan, p.name);
+    });
+    li.append(b);
+    planList.append(li);
   }
   openDialog.showModal();
 });
@@ -163,21 +198,34 @@ fileInput.addEventListener('change', async () => {
   try {
     const plan = normalizePlan(JSON.parse(await file.text()));
     openDialog.close();
+    publishedFrom = null;
     openPlan(plan, null);
   } catch {
     alert('That file could not be read as a house plan.');
   }
 });
 
-// On startup, the plan file in the project is the source of truth (it may have changed,
-// e.g. after a git pull); fall back to the browser copy if it's missing.
-plansApiAvailable().then(async (ok) => {
-  apiAvailable = ok;
-  const name = store.planName;
-  if (ok && name) {
-    const plan = await loadPlan(name).catch(() => null);
-    if (plan) openPlan(plan, name);
-    else await autosave.saveNow();
+detectPlansMode().then(async (m) => {
+  mode = m;
+  if (mode === 'project') {
+    // The plan file is the source of truth (it may have changed, e.g. after a git pull);
+    // fall back to the browser copy if it's missing.
+    const name = store.planName;
+    if (name) {
+      const plan = await loadPlan(name).catch(() => null);
+      if (plan) openPlan(plan, name);
+      else await autosave.saveNow();
+    }
+  } else {
+    // no project folder to write to
+    if (store.planName) store.setPlanName(null);
+    saveAsButton.textContent = 'Download';
+    saveAsButton.title = 'Download this plan as a .json file (⌘S)';
+    // first visit: show the most recently published plan
+    if (mode === 'published' && !store.plan.walls.length && !store.plan.furniture.length) {
+      const latest = (await listPublishedPlans().catch(() => []))[0];
+      if (latest) await openPublished(latest.name);
+    }
   }
   syncPlanLabel();
 });
@@ -219,7 +267,7 @@ window.addEventListener('keydown', (e) => {
   }
   if (mod && e.key.toLowerCase() === 's') {
     e.preventDefault();
-    if (store.planName && apiAvailable) autosave.saveNow();
+    if (store.planName && mode === 'project') autosave.saveNow();
     else saveAs();
     return;
   }
