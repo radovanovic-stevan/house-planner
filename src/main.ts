@@ -5,11 +5,13 @@ import { emptyPlan, normalizePlan } from './model';
 import { deleteSelection } from './ops';
 import { Panel } from './panel';
 import { Store, type Tool, type ViewMode } from './store';
+import { View3D } from './view3d';
 
 const store = new Store();
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector<T>(sel)!;
 
 const editor = new Editor2D($<HTMLCanvasElement>('#plan'), store);
+const view3d = new View3D($('#view3d'), store);
 new Panel($('#panel'), store);
 
 const statusLeft = $('#status-left');
@@ -44,7 +46,7 @@ snapSelect.addEventListener('change', () => store.setUi({ snap: parseFloat(snapS
 
 $('#undo').addEventListener('click', () => store.undo());
 $('#redo').addEventListener('click', () => store.redo());
-$('#fit').addEventListener('click', () => editor.zoomToFit());
+$('#fit').addEventListener('click', () => (store.ui.view === '2d' ? editor.zoomToFit() : view3d.frame(false)));
 
 $('#new').addEventListener('click', () => {
   if (store.plan.walls.length && !confirm('Start a new, empty plan? (You can undo this.)')) return;
@@ -128,7 +130,11 @@ window.addEventListener('keydown', (e) => {
     setTool(shortcuts[key]);
     return;
   }
-  if (key === 'f' && store.ui.view === '2d') editor.zoomToFit();
+  if (key === 'f') {
+    if (store.ui.view === '2d') editor.zoomToFit();
+    else view3d.frame(false);
+  }
+  if (key === 'c' && store.ui.view === '3d') view3d.toggleCutaway();
   if (e.key === 'Escape') {
     if (store.selection) store.select(null);
     else setTool('select');

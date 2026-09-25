@@ -338,3 +338,26 @@ main {
     display: none;
   }
 }
+
+/* ---------- 3D overlay ---------- */
+
+.overlay-3d {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  display: flex;
+  gap: 6px;
+}
+.overlay-3d button {
+  background: rgb(255 255 255 / 0.92);
+  border-color: var(--border);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.08);
+}
+.overlay-3d button:hover {
+  background: #fff;
+}
+.overlay-3d button.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: #c5d6fb;
+}

@@ -305,7 +305,7 @@ export class Panel {
         : `
       <h3>3D view</h3>
       <ul>
-        <li>Left-drag to orbit, right-drag to pan, scroll to zoom.</li>
+        <li>Left-drag to orbit, right-drag to pan, scroll to zoom. <kbd>C</kbd> toggles cutaway walls.</li>
         <li><kbd>B</kbd> Box: click the floor to place furniture.</li>
         <li>Click a box to select it, drag it to move. <kbd>R</kbd> rotates 90°, <kbd>Del</kbd> removes.</li>
         <li>Set exact sizes in this panel.</li>
