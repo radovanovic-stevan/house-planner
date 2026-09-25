@@ -38,17 +38,9 @@ export function projectOnSegment(p: Vec2, a: Vec2, b: Vec2) {
 
 export function snapToGrid(p: Vec2, step: number): Vec2 {
   if (step <= 0) return p;
-  return { x: Math.round(p.x / step) * step, y: Math.round(p.y / step) * step };
-}
-
-/** Constrains `p` so that the segment from `origin` is at a multiple of 45 degrees. */
-export function snapAngle(origin: Vec2, p: Vec2, stepDeg = 45): Vec2 {
-  const d = sub(p, origin);
-  const l = len(d);
-  if (l < EPS) return p;
-  const step = (stepDeg * Math.PI) / 180;
-  const ang = Math.round(Math.atan2(d.y, d.x) / step) * step;
-  return { x: origin.x + Math.cos(ang) * l, y: origin.y + Math.sin(ang) * l };
+  // round away float noise such as 5.800000000000001
+  const r = (v: number) => Math.round(Math.round(v / step) * step * 1e6) / 1e6;
+  return { x: r(p.x), y: r(p.y) };
 }
 
 /** Signed polygon area (positive for clockwise on screen since y is down). */

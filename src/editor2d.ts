@@ -9,7 +9,6 @@ import {
   projectOnSegment,
   rectCorners,
   scale,
-  snapAngle,
   snapToGrid,
   sub,
   wallDir,
@@ -50,9 +49,21 @@ const COLORS = {
 type Drag =
   | { kind: 'pan'; start: Vec2; origin: Vec2 }
   | { kind: 'endpoint'; refs: EndpointRef[]; moved: boolean }
+  | { kind: 'corner'; point: Vec2; moves: CornerMove[]; moved: boolean }
   | { kind: 'wall'; refs: EndpointRef[]; normal: Vec2; startWorld: Vec2; startPositions: Vec2[]; moved: boolean }
   | { kind: 'opening'; id: string; moved: boolean }
   | { kind: 'furniture'; id: string; offset: Vec2; moved: boolean };
+
+/** An endpoint moved by a corner drag, along x, y or both. */
+interface CornerMove {
+  ref: EndpointRef;
+  start: Vec2;
+  x: boolean;
+  y: boolean;
+}
+
+const isHorizontal = (w: Wall) => Math.abs(w.a.y - w.b.y) < 1e-6;
+const isVertical = (w: Wall) => Math.abs(w.a.x - w.b.x) < 1e-6;
 
 type Hit =
   | { kind: 'endpoint'; point: Vec2 }
@@ -68,10 +79,10 @@ export class Editor2D {
   /** Screen position (css px) of world origin. */
   private origin: Vec2 = { x: 200, y: 150 };
   private cursor: Vec2 | null = null; // world, raw
-  private shift = false;
   private spaceDown = false;
   private drag: Drag | null = null;
-  private chain: { start: Vec2; last: Vec2 } | null = null;
+  /** Wall chain being drawn; `lastHorizontal` is the direction of the latest segment. */
+  private chain: { start: Vec2; last: Vec2; lastHorizontal?: boolean } | null = null;
   private typedLength = '';
   private hover: Hit = null;
   private frame = 0;
@@ -176,33 +187,40 @@ export class Editor2D {
 
   // ---------- snapping ----------
 
-  /** Snaps a raw world point: existing wall endpoints win, then grid; Shift constrains angle. */
+  /**
+   * Snaps a raw world point for wall drawing. Without `from` (first click), existing wall
+   * endpoints win, then the grid. With `from`, the point is locked horizontally or vertically
+   * to `from` (walls are always axis-aligned), and its free coordinate lines up with nearby
+   * wall corners or the grid.
+   */
   private snapPoint(raw: Vec2, from?: Vec2): { p: Vec2; onEndpoint: boolean } {
-    const tol = this.px(10);
-    let best: Vec2 | null = null;
-    let bestD = tol;
-    for (const w of this.store.plan.walls) {
-      for (const e of [w.a, w.b]) {
+    const tol = this.px(12);
+    const endpoints = this.store.plan.walls.flatMap((w) => [w.a, w.b]);
+    const grid = snapToGrid(raw, this.store.ui.snap);
+    if (!from) {
+      let best: Vec2 | null = null;
+      let bestD = tol;
+      for (const e of endpoints) {
         const d = dist(e, raw);
         if (d < bestD) {
           bestD = d;
           best = e;
         }
       }
+      return best ? { p: { ...best }, onEndpoint: true } : { p: grid, onEndpoint: false };
     }
-    if (best && !(from && this.shift)) return { p: { ...best }, onEndpoint: true };
-    let p = snapToGrid(raw, this.store.ui.snap);
-    if (from && this.shift) {
-      p = snapAngle(from, raw, 45);
-      // keep the length on the grid step
-      const step = this.store.ui.snap;
-      if (step > 0) {
-        const l = dist(from, p);
-        const d = normalize(sub(p, from));
-        p = add(from, scale(d, Math.round(l / step) * step));
+    const horizontal = Math.abs(raw.x - from.x) >= Math.abs(raw.y - from.y);
+    const axis = horizontal ? 'x' : 'y';
+    const p = horizontal ? { x: grid.x, y: from.y } : { x: from.x, y: grid.y };
+    let bestD = tol;
+    for (const e of endpoints) {
+      const d = Math.abs(e[axis] - raw[axis]);
+      if (d < bestD) {
+        bestD = d;
+        p[axis] = e[axis];
       }
     }
-    return { p, onEndpoint: false };
+    return { p, onEndpoint: endpoints.some((e) => dist(e, p) < 1e-6) };
   }
 
   private snapScalar(v: number) {
@@ -271,25 +289,12 @@ export class Editor2D {
     store.checkpoint();
     if (hit.kind === 'endpoint') {
       const refs = endpointsAt(store.plan, hit.point);
-      this.drag = { kind: 'endpoint', refs, moved: false };
+      this.drag = this.cornerDrag(hit.point, refs);
       const sel = store.selection;
       if (!(sel?.kind === 'wall' && refs.some((r) => r.wallId === sel.id))) store.select({ kind: 'wall', id: refs[0].wallId });
     } else if (hit.kind === 'wall') {
       // Move the whole straight run of wall, perpendicular to itself; joined walls stretch.
-      const run = collinearRun(store.plan, hit.wall);
-      const seen = new Set<string>();
-      const refs: EndpointRef[] = [];
-      for (const w of run) {
-        for (const p of [w.a, w.b]) {
-          for (const r of endpointsAt(store.plan, p)) {
-            const k = `${r.wallId}:${r.end}`;
-            if (!seen.has(k)) {
-              seen.add(k);
-              refs.push(r);
-            }
-          }
-        }
-      }
+      const refs = this.runRefs(hit.wall);
       this.drag = {
         kind: 'wall',
         refs,
@@ -309,11 +314,60 @@ export class Editor2D {
     }
   }
 
+  /** Every endpoint on a straight run of wall, including the ends of walls joined to it. */
+  private runRefs(wall: Wall): EndpointRef[] {
+    const plan = this.store.plan;
+    const seen = new Set<string>();
+    const refs: EndpointRef[] = [];
+    for (const w of collinearRun(plan, wall)) {
+      for (const p of [w.a, w.b]) {
+        for (const r of endpointsAt(plan, p)) {
+          const k = `${r.wallId}:${r.end}`;
+          if (!seen.has(k)) {
+            seen.add(k);
+            refs.push(r);
+          }
+        }
+      }
+    }
+    return refs;
+  }
+
+  /**
+   * Dragging a corner moves the vertical wall line through it sideways and the horizontal
+   * wall line through it up/down, so every wall stays horizontal or vertical. With no
+   * vertical (or horizontal) wall at the corner, only the corner itself moves on that axis,
+   * lengthening the walls that end there. Corners with diagonal walls move freely.
+   */
+  private cornerDrag(point: Vec2, at: EndpointRef[]): Drag {
+    const plan = this.store.plan;
+    const walls = at.map((r) => getWall(plan, r.wallId)!);
+    if (walls.some((w) => !isHorizontal(w) && !isVertical(w))) return { kind: 'endpoint', refs: at, moved: false };
+    const moves = new Map<string, CornerMove>();
+    const add = (refs: EndpointRef[], axis: 'x' | 'y') => {
+      for (const r of refs) {
+        const k = `${r.wallId}:${r.end}`;
+        let m = moves.get(k);
+        if (!m) {
+          m = { ref: r, start: { ...getWall(plan, r.wallId)![r.end] }, x: false, y: false };
+          moves.set(k, m);
+        }
+        m[axis] = true;
+      }
+    };
+    add(at, 'x');
+    add(at, 'y');
+    for (const w of walls) {
+      if (isVertical(w)) add(this.runRefs(w), 'x');
+      else add(this.runRefs(w), 'y');
+    }
+    return { kind: 'corner', point: { ...point }, moves: [...moves.values()], moved: false };
+  }
+
   private onPointerMove(e: PointerEvent) {
     const s = this.eventScreen(e);
     const p = this.toWorld(s);
     this.cursor = p;
-    this.shift = e.shiftKey;
     const plan = this.store.plan;
     const d = this.drag;
 
@@ -325,6 +379,16 @@ export class Editor2D {
       const q = this.snapPointExcluding(p, new Set(others.map((w) => w.id)));
       for (const r of d.refs) getWall(plan, r.wallId)![r.end] = { ...q };
       for (const w of others) clampOpeningsOnWall(plan, w.id);
+      d.moved = true;
+      this.store.emit();
+    } else if (d?.kind === 'corner') {
+      const target = snapToGrid(p, this.store.ui.snap);
+      const dx = target.x - d.point.x;
+      const dy = target.y - d.point.y;
+      for (const m of d.moves) {
+        getWall(plan, m.ref.wallId)![m.ref.end] = { x: m.start.x + (m.x ? dx : 0), y: m.start.y + (m.y ? dy : 0) };
+      }
+      for (const m of d.moves) clampOpeningsOnWall(plan, m.ref.wallId);
       d.moved = true;
       this.store.emit();
     } else if (d?.kind === 'wall') {
@@ -389,7 +453,7 @@ export class Editor2D {
       this.store.dropCheckpoint();
       return;
     }
-    if (d.kind === 'endpoint' || d.kind === 'wall') {
+    if (d.kind === 'endpoint' || d.kind === 'corner' || d.kind === 'wall') {
       healWalls(this.store.plan);
       this.store.emit();
     }
@@ -410,11 +474,6 @@ export class Editor2D {
       this.spaceDown = down;
       this.updateCursorStyle();
       return true;
-    }
-    if (e.key === 'Shift') {
-      this.shift = down;
-      this.requestRender();
-      return false;
     }
     if (!down) return false;
     if (this.chain) {
@@ -446,6 +505,8 @@ export class Editor2D {
   private previewPoint(): Vec2 | null {
     if (!this.cursor) return null;
     const from = this.chain?.last;
+    // Near the chain start: close the room, even if that needs an L-shaped pair of walls.
+    if (this.chain && !this.typedLength && dist(this.cursor, this.chain.start) < this.px(12)) return { ...this.chain.start };
     const { p } = this.snapPoint(this.cursor, from);
     if (from && this.typedLength) {
       const l = parseFloat(this.typedLength);
@@ -468,11 +529,26 @@ export class Editor2D {
     this.addChainSegment(p);
   }
 
+  /**
+   * Axis-aligned path from the chain's last point to `p`: a straight wall, or two walls
+   * meeting at a corner when `p` isn't lined up (only happens when closing on the start).
+   * The corner turns away from the latest segment's direction.
+   */
+  private chainPath(p: Vec2): Vec2[] {
+    const from = this.chain!.last;
+    if (Math.abs(from.x - p.x) < 1e-6 || Math.abs(from.y - p.y) < 1e-6) return [from, p];
+    const corner = this.chain!.lastHorizontal ? { x: from.x, y: p.y } : { x: p.x, y: from.y };
+    return [from, corner, p];
+  }
+
   private addChainSegment(p: Vec2) {
     if (!this.chain || dist(this.chain.last, p) < 0.01) return;
     const store = this.store;
     store.checkpoint();
-    addWall(store.plan, this.chain.last, p);
+    const path = this.chainPath(p);
+    for (let i = 0; i < path.length - 1; i++) addWall(store.plan, path[i], path[i + 1]);
+    const prev = path[path.length - 2];
+    this.chain.lastHorizontal = Math.abs(prev.y - p.y) < 1e-6;
     const closed = dist(p, this.chain.start) < 1e-3;
     this.chain.last = p;
     this.typedLength = '';
@@ -834,33 +910,34 @@ export class Editor2D {
     if (tool === 'wall') {
       const p = this.previewPoint();
       if (!p) return;
-      const snapped = this.snapPoint(this.cursor, this.chain?.last);
+      const onEndpoint = this.store.plan.walls.some((w) => dist(w.a, p) < 1e-6 || dist(w.b, p) < 1e-6) || (!!this.chain && dist(this.chain.start, p) < 1e-6);
       const sp = this.toScreen(p);
       if (this.chain) {
-        const from = this.chain.last;
-        const sf = this.toScreen(from);
-        const tpx = DEFAULTS.wallThickness * this.zoom;
+        const path = this.chainPath(p).map((q) => this.toScreen(q));
+        const tracePath = () => {
+          ctx.beginPath();
+          path.forEach((q, i) => (i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)));
+          ctx.stroke();
+        };
         ctx.save();
         ctx.globalAlpha = 0.35;
         ctx.strokeStyle = COLORS.preview;
-        ctx.lineWidth = tpx;
-        ctx.lineCap = 'butt';
-        ctx.beginPath();
-        ctx.moveTo(sf.x, sf.y);
-        ctx.lineTo(sp.x, sp.y);
-        ctx.stroke();
+        ctx.lineWidth = DEFAULTS.wallThickness * this.zoom;
+        ctx.lineCap = 'square';
+        ctx.lineJoin = 'miter';
+        tracePath();
         ctx.restore();
         ctx.strokeStyle = COLORS.preview;
         ctx.lineWidth = 1;
         ctx.setLineDash([5, 4]);
-        ctx.beginPath();
-        ctx.moveTo(sf.x, sf.y);
-        ctx.lineTo(sp.x, sp.y);
-        ctx.stroke();
+        tracePath();
         ctx.setLineDash([]);
-        const L = dist(from, p);
-        const label = this.typedLength ? `${this.typedLength}▏m` : `${fmt(L)} m`;
-        this.drawTag(label, { x: (sf.x + sp.x) / 2, y: (sf.y + sp.y) / 2 - 16 });
+        const worldPath = this.chainPath(p);
+        for (let i = 0; i < path.length - 1; i++) {
+          const L = dist(worldPath[i], worldPath[i + 1]);
+          const label = this.typedLength ? `${this.typedLength}▏m` : `${fmt(L)} m`;
+          this.drawTag(label, { x: (path[i].x + path[i + 1].x) / 2, y: (path[i].y + path[i + 1].y) / 2 - 16 });
+        }
         // show the chain start so closing the loop is easy
         const ss = this.toScreen(this.chain.start);
         ctx.beginPath();
@@ -869,7 +946,7 @@ export class Editor2D {
         ctx.fill();
       }
       ctx.beginPath();
-      ctx.arc(sp.x, sp.y, snapped.onEndpoint ? 7 : 4, 0, Math.PI * 2);
+      ctx.arc(sp.x, sp.y, onEndpoint ? 7 : 4, 0, Math.PI * 2);
       ctx.strokeStyle = COLORS.preview;
       ctx.lineWidth = 2;
       ctx.stroke();

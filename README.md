@@ -12,10 +12,10 @@ npm run build    # typecheck + production build into dist/
 
 **2D plan**
 
-- `W` **Wall**: click to start, click to add corners. Type a number and press `Enter` for an exact length in meters, and hold `Shift` to lock to 45°. `Esc`, a double-click or a right-click ends the chain. Clicking the start point closes the room.
+- `W` **Wall**: click to start, click to add corners. Walls are always horizontal or vertical. Type a number and press `Enter` for an exact length in meters. `Esc`, a double-click or a right-click ends the chain. Clicking the start point closes the room.
 - `D` **Door** / `N` **Window**: click on a wall.
 - `B` **Box**: click to place a furniture box.
-- `V` **Select**: drag corners, whole walls (joined walls stretch), openings along walls, and boxes. `Del` removes the selected item and the panel on the right edits exact sizes.
+- `V` **Select**: drag corners (the wall lines through a corner move with it, so walls stay straight), whole walls (joined walls stretch), openings along walls, and boxes. `Del` removes the selected item and the panel on the right edits exact sizes.
 - Closed rooms show their net floor area (inside the walls) in m².
 - Scroll or pinch to zoom. Drag empty space, use the middle mouse or hold `Space` and drag to pan. `F` zooms to fit.
 

@@ -292,10 +292,10 @@ export class Panel {
         ? `
       <h3>Drawing</h3>
       <ul>
-        <li><kbd>W</kbd> Wall: click to start, click to add corners. Type a number + <kbd>Enter</kbd> for an exact length. <kbd>Shift</kbd> locks to 45°. Finish with <kbd>Esc</kbd>, double-click or right-click; clicking the start point closes the room.</li>
+        <li><kbd>W</kbd> Wall: click to start, click to add corners. Walls are always horizontal or vertical. Type a number + <kbd>Enter</kbd> for an exact length. Finish with <kbd>Esc</kbd>, double-click or right-click; clicking the start point closes the room.</li>
         <li><kbd>D</kbd> Door / <kbd>N</kbd> Window: click on a wall.</li>
         <li><kbd>B</kbd> Box: click to place furniture.</li>
-        <li><kbd>V</kbd> Select: drag walls, corners, openings and boxes. <kbd>Del</kbd> removes.</li>
+        <li><kbd>V</kbd> Select: drag walls, corners, openings and boxes. Dragging a corner moves the wall lines through it. <kbd>Del</kbd> removes.</li>
       </ul>
       <h3>View</h3>
       <ul>
