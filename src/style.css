@@ -361,3 +361,74 @@ main {
   color: var(--accent);
   border-color: #c5d6fb;
 }
+
+/* ---------- plans ---------- */
+
+.plan-name {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 12px;
+}
+.plan-name.unsaved {
+  color: #b7791f;
+}
+.plan-name.error {
+  color: var(--danger);
+}
+
+dialog {
+  width: min(460px, calc(100vw - 32px));
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.18);
+}
+dialog::backdrop {
+  background: rgb(20 20 25 / 0.25);
+}
+dialog h2 {
+  margin: 0;
+  font-size: 15px;
+}
+.dialog-sub {
+  margin: 2px 0 12px;
+  color: var(--muted);
+}
+.plan-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.plan-list li + li {
+  border-top: 1px solid var(--border);
+}
+.plan-list button {
+  width: 100%;
+  height: auto;
+  padding: 10px 12px;
+  border-radius: 0;
+  justify-content: space-between;
+}
+.plan-list button span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.plan-list .empty {
+  padding: 16px 12px;
+  color: var(--muted);
+}
+.dialog-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 14px;
+}
+.dialog-actions button {
+  border-color: var(--border);
+}

@@ -25,7 +25,16 @@ npm run build    # typecheck + production build into dist/
 - `B` then click the floor to place a box. Click a box to select it and drag it to move it. `R` rotates it 90° (`Shift+R` rotates 15°).
 - `C` toggles cutaway walls so rooms are visible from above.
 
-The plan autosaves in the browser. **Save…** and **Open…** export and import it as JSON. `⌘Z` / `⇧⌘Z` undo and redo.
+`⌘Z` / `⇧⌘Z` undo and redo.
+
+## Saving plans
+
+Plans are saved as JSON files in the project's `plans/` folder, so they can be committed with the code.
+
+- **Save as…** (`⌘S` on an unnamed plan) names the plan and writes `plans/<name>.json`. After that, every change autosaves to that file. The toolbar shows the plan's name and whether it's saved.
+- **Open…** lists the plans in `plans/`. It can also import or download a `.json` file.
+- On startup the app reopens the last plan from its file, so changes from `git pull` show up.
+- Saving to the project goes through the dev server (`npm run dev` or `npm run preview`). In a static build, Save as… downloads a file instead.
 
 ## Code map
 
@@ -38,3 +47,5 @@ The plan autosaves in the browser. **Save…** and **Open…** export and import
 | `src/editor2d.ts` | Canvas plan editor: rendering, snapping, tools |
 | `src/view3d.ts` | three.js scene built from the plan, furniture picking and dragging |
 | `src/panel.ts` | Properties panel and plan summary |
+| `src/projectPlans.ts` | Client for the `plans/` API, and autosave to the current plan file |
+| `vite.config.ts` | Dev server plugin serving `/api/plans` from the `plans/` folder |

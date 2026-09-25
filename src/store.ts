@@ -1,6 +1,7 @@
 import { emptyPlan, normalizePlan, type Plan, type Selection } from './model';
 
 const STORAGE_KEY = 'house-planner:plan';
+const NAME_KEY = 'house-planner:name';
 const MAX_HISTORY = 200;
 
 type Listener = () => void;
@@ -22,6 +23,8 @@ export interface UiState {
  */
 export class Store {
   plan: Plan;
+  /** Name of the plan file in the project's plans/ folder, or null for an unsaved plan. */
+  planName: string | null = null;
   selection: Selection = null;
   ui: UiState = { tool: 'wall', view: '2d', snap: 0.1 };
   private undoStack: string[] = [];
@@ -31,6 +34,22 @@ export class Store {
 
   constructor() {
     this.plan = this.load() ?? emptyPlan();
+    try {
+      this.planName = localStorage.getItem(NAME_KEY);
+    } catch {
+      /* storage unavailable */
+    }
+  }
+
+  setPlanName(name: string | null) {
+    this.planName = name;
+    try {
+      if (name) localStorage.setItem(NAME_KEY, name);
+      else localStorage.removeItem(NAME_KEY);
+    } catch {
+      /* storage unavailable */
+    }
+    this.emit();
   }
 
   subscribe(fn: Listener): () => void {
@@ -88,11 +107,16 @@ export class Store {
     this.emit();
   }
 
-  replacePlan(plan: Plan) {
-    this.checkpoint();
+  /**
+   * Switches to a different plan (and the file name it saves to). Clears undo history:
+   * undoing into the previous plan would autosave its content into the new plan's file.
+   */
+  replacePlan(plan: Plan, name: string | null) {
+    this.undoStack = [];
+    this.redoStack = [];
     this.plan = normalizePlan(plan);
     this.selection = null;
-    this.emit();
+    this.setPlanName(name);
   }
 
   private validateSelection() {

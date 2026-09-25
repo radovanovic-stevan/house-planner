@@ -63,10 +63,11 @@
       <div class="spacer"></div>
 
       <div class="group file">
+        <span id="plan-name" class="plan-name"></span>
         <button id="new">New</button>
         <button id="example">Example</button>
-        <button id="import">Open…</button>
-        <button id="export">Save…</button>
+        <button id="open">Open…</button>
+        <button id="save-as" title="Save to the project's plans/ folder (⌘S)">Save as…</button>
         <input type="file" id="file" accept=".json,application/json" hidden />
       </div>
     </header>
@@ -83,6 +84,20 @@
       <span id="status-left"></span>
       <span id="status-right"></span>
     </footer>
+
+    <dialog id="open-dialog">
+      <form method="dialog">
+        <h2>Open a plan</h2>
+        <p class="dialog-sub">Plans saved in the project's <code>plans/</code> folder</p>
+        <ul id="plan-list" class="plan-list"></ul>
+        <div class="dialog-actions">
+          <button type="button" id="import">Import .json file…</button>
+          <button type="button" id="download">Download current plan</button>
+          <span class="spacer"></span>
+          <button value="close">Close</button>
+        </div>
+      </form>
+    </dialog>
 
     <script type="module" src="/src/main.ts"></script>
   </body>
