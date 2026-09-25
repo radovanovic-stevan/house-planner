@@ -167,3 +167,46 @@ export function setWallLength(plan: Plan, w: Wall, length: number) {
     clampOpeningsOnWall(plan, ww.id);
   }
 }
+
+const pointKey = (p: Vec2) => `${Math.round(p.x * 1000)},${Math.round(p.y * 1000)}`;
+
+/**
+ * How far each wall end should be extended so corners close up: joined ends are
+ * extended by half the wall thickness, free ends are not.
+ */
+export function wallEndExtensions(plan: Plan): Map<string, { a: number; b: number }> {
+  const degree = new Map<string, number>();
+  for (const w of plan.walls) {
+    for (const p of [w.a, w.b]) degree.set(pointKey(p), (degree.get(pointKey(p)) ?? 0) + 1);
+  }
+  const result = new Map<string, { a: number; b: number }>();
+  for (const w of plan.walls) {
+    result.set(w.id, {
+      a: (degree.get(pointKey(w.a)) ?? 0) > 1 ? w.thickness / 2 : 0,
+      b: (degree.get(pointKey(w.b)) ?? 0) > 1 ? w.thickness / 2 : 0,
+    });
+  }
+  return result;
+}
+
+/** The wall plus every wall joined to it end-to-end along the same straight line. */
+export function collinearRun(plan: Plan, wall: Wall): Wall[] {
+  const d = sub(wall.b, wall.a);
+  const run = new Set<Wall>([wall]);
+  const queue = [wall];
+  while (queue.length) {
+    const w = queue.pop()!;
+    for (const p of [w.a, w.b]) {
+      for (const r of endpointsAt(plan, p)) {
+        const other = getWall(plan, r.wallId)!;
+        if (run.has(other)) continue;
+        const od = sub(other.b, other.a);
+        if (Math.abs(cross(d, od)) / (Math.hypot(d.x, d.y) * Math.hypot(od.x, od.y)) < 1e-3) {
+          run.add(other);
+          queue.push(other);
+        }
+      }
+    }
+  }
+  return [...run];
+}

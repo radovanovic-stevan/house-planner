@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>House Planner</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='M4 15 16 4l12 11v13H4z' fill='%232f6fed'/><path d='M13 28v-8h6v8' fill='white'/></svg>" />
+  </head>
+  <body>
+    <header class="toolbar">
+      <div class="brand">House Planner</div>
+
+      <div class="seg" role="tablist" aria-label="View">
+        <button data-view="2d" class="active">2D plan</button>
+        <button data-view="3d">3D view</button>
+      </div>
+
+      <div class="group tools" aria-label="Tools">
+        <button data-tool="select" title="Select / move (V)">
+          <svg viewBox="0 0 20 20"><path d="M5 3l10 6-4.5 1.2L13 16l-2 1-2.5-5.8L5 14z" /></svg><span>Select</span>
+        </button>
+        <button data-tool="wall" data-only="2d" title="Draw walls (W)">
+          <svg viewBox="0 0 20 20"><rect x="2" y="8" width="16" height="4" /></svg><span>Wall</span>
+        </button>
+        <button data-tool="door" data-only="2d" title="Place a door (D)">
+          <svg viewBox="0 0 20 20" class="line"><path d="M4 16V4h0M4 4a12 12 0 0 1 12 12H4" /></svg><span>Door</span>
+        </button>
+        <button data-tool="window" data-only="2d" title="Place a window (N)">
+          <svg viewBox="0 0 20 20" class="line"><rect x="2" y="7" width="16" height="6" /><path d="M2 10h16" /></svg><span>Window</span>
+        </button>
+        <button data-tool="furniture" title="Place a furniture box (B)">
+          <svg viewBox="0 0 20 20" class="line"><path d="M3 7l7-4 7 4v7l-7 4-7-4zM3 7l7 4 7-4M10 11v7" /></svg><span>Box</span>
+        </button>
+      </div>
+
+      <div class="group">
+        <label class="snap" title="Grid snapping">
+          Snap
+          <select id="snap">
+            <option value="0">off</option>
+            <option value="0.01">1 cm</option>
+            <option value="0.05">5 cm</option>
+            <option value="0.1" selected>10 cm</option>
+            <option value="0.25">25 cm</option>
+            <option value="0.5">50 cm</option>
+            <option value="1">1 m</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="group">
+        <button id="undo" title="Undo (⌘Z)" class="icon">
+          <svg viewBox="0 0 20 20" class="line"><path d="M7 5L3 9l4 4M3 9h9a5 5 0 0 1 0 10h-2" /></svg>
+        </button>
+        <button id="redo" title="Redo (⇧⌘Z)" class="icon">
+          <svg viewBox="0 0 20 20" class="line"><path d="M13 5l4 4-4 4M17 9H8a5 5 0 0 0 0 10h2" /></svg>
+        </button>
+        <button id="fit" title="Zoom to fit (F)" class="icon">
+          <svg viewBox="0 0 20 20" class="line"><path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4" /></svg>
+        </button>
+      </div>
+
+      <div class="spacer"></div>
+
+      <div class="group file">
+        <button id="new">New</button>
+        <button id="example">Example</button>
+        <button id="import">Open…</button>
+        <button id="export">Save…</button>
+        <input type="file" id="file" accept=".json,application/json" hidden />
+      </div>
+    </header>
+
+    <main>
+      <div class="viewport">
+        <canvas id="plan" tabindex="0"></canvas>
+        <div id="view3d" hidden></div>
+      </div>
+      <aside id="panel" class="panel"></aside>
+    </main>
+
+    <footer class="status">
+      <span id="status-left"></span>
+      <span id="status-right"></span>
+    </footer>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

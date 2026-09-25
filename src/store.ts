@@ -5,6 +5,16 @@ const MAX_HISTORY = 200;
 
 type Listener = () => void;
 
+export type Tool = 'select' | 'wall' | 'door' | 'window' | 'furniture';
+export type ViewMode = '2d' | '3d';
+
+export interface UiState {
+  tool: Tool;
+  view: ViewMode;
+  /** Grid snapping step in meters (0 disables snapping). */
+  snap: number;
+}
+
 /**
  * Holds the plan, the current selection and undo/redo history.
  * Mutations happen in place: call `checkpoint()` before a change you want to be undoable,
@@ -13,6 +23,7 @@ type Listener = () => void;
 export class Store {
   plan: Plan;
   selection: Selection = null;
+  ui: UiState = { tool: 'wall', view: '2d', snap: 0.1 };
   private undoStack: string[] = [];
   private redoStack: string[] = [];
   private listeners = new Set<Listener>();
@@ -69,6 +80,11 @@ export class Store {
 
   select(sel: Selection) {
     this.selection = sel;
+    this.emit();
+  }
+
+  setUi(patch: Partial<UiState>) {
+    Object.assign(this.ui, patch);
     this.emit();
   }
 
