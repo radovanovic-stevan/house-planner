@@ -15,6 +15,7 @@ const COLORS = {
   glass: 0x9ec3e6,
   door: 0xa47b56,
   frame: 0x5c6168,
+  tile: 0xd9c9ae,
   accent: 0x2f6fed,
   edge: 0x3a3a3a,
 };
@@ -22,7 +23,7 @@ const COLORS = {
 /** Walls are cut down to this height in cutaway mode so the rooms are visible from above. */
 const CUTAWAY_HEIGHT = 1.1;
 
-type Pick = { kind: 'wall' | 'opening' | 'furniture'; id: string };
+type Pick = { kind: 'wall' | 'opening' | 'furniture' | 'area'; id: string };
 
 type Drag = { id: string; offset: THREE.Vector2; moved: boolean };
 
@@ -227,7 +228,7 @@ export class View3D {
     const plan = this.store.plan;
     const sel = this.store.selection;
     const selKey = sel && sel.kind !== 'furniture' ? `${sel.kind}:${sel.id}` : '';
-    const key = JSON.stringify([plan.walls, plan.openings, this.cutaway, selKey]);
+    const key = JSON.stringify([plan.walls, plan.openings, plan.areas, this.cutaway, selKey]);
     if (key === this.structureKey) return;
     this.structureKey = key;
 
@@ -261,6 +262,20 @@ export class View3D {
       mesh.rotation.x = -Math.PI / 2;
       mesh.position.y = 0.002;
       mesh.receiveShadow = true;
+      this.structure.add(mesh);
+    }
+
+    // terraces and balconies: a tiled slab just above the ground
+    for (const a of plan.areas) {
+      const selected = sel?.kind === 'area' && sel.id === a.id;
+      const tex = tileTexture();
+      tex.repeat.set(a.width / 0.4, a.length / 0.4);
+      const mat = new THREE.MeshStandardMaterial({ color: selected ? COLORS.accent : COLORS.tile, map: tex, roughness: 0.9 });
+      const slab = 0.04;
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(a.width, slab, a.length), mat);
+      mesh.position.set(a.x + a.width / 2, slab / 2 - 0.01, a.y + a.length / 2);
+      mesh.receiveShadow = true;
+      mesh.userData.pick = { kind: 'area', id: a.id } satisfies Pick;
       this.structure.add(mesh);
     }
   }
@@ -514,12 +529,33 @@ export class View3D {
 function disposeGroup(group: THREE.Group) {
   const materials = new Set<THREE.Material>();
   for (const child of [...group.children]) {
-    const mesh = child as THREE.Mesh;
-    mesh.geometry?.dispose();
-    const m = mesh.material;
-    if (Array.isArray(m)) m.forEach((x) => materials.add(x));
-    else if (m) materials.add(m);
+    child.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      mesh.geometry?.dispose();
+      const m = mesh.material;
+      if (Array.isArray(m)) m.forEach((x) => materials.add(x));
+      else if (m) materials.add(m);
+    });
     group.remove(child);
   }
-  materials.forEach((m) => m.dispose());
+  materials.forEach((m) => {
+    (m as THREE.MeshStandardMaterial).map?.dispose();
+    m.dispose();
+  });
+}
+
+/** One floor tile with grout lines, repeated across terraces and balconies. */
+function tileTexture(): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const ctx = c.getContext('2d')!;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, 64, 64);
+  ctx.strokeStyle = '#a89c8a';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(0, 0, 64, 64);
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
 }

@@ -6,7 +6,7 @@ const MAX_HISTORY = 200;
 
 type Listener = () => void;
 
-export type Tool = 'select' | 'wall' | 'door' | 'terraceDoor' | 'window' | 'tallWindow' | 'furniture';
+export type Tool = 'select' | 'wall' | 'door' | 'terraceDoor' | 'window' | 'tallWindow' | 'furniture' | 'area';
 export type ViewMode = '2d' | '3d';
 
 export interface UiState {
@@ -122,7 +122,8 @@ export class Store {
   private validateSelection() {
     const s = this.selection;
     if (!s) return;
-    const list = s.kind === 'wall' ? this.plan.walls : s.kind === 'opening' ? this.plan.openings : this.plan.furniture;
+    const lists = { wall: this.plan.walls, opening: this.plan.openings, furniture: this.plan.furniture, area: this.plan.areas };
+    const list: { id: string }[] = lists[s.kind];
     if (!list.some((x) => x.id === s.id)) this.selection = null;
   }
 

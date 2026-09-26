@@ -133,9 +133,10 @@ export function deleteWall(plan: Plan, id: string) {
   plan.openings = plan.openings.filter((o) => o.wallId !== id);
 }
 
-export function deleteSelection(plan: Plan, kind: 'wall' | 'opening' | 'furniture', id: string) {
+export function deleteSelection(plan: Plan, kind: 'wall' | 'opening' | 'furniture' | 'area', id: string) {
   if (kind === 'wall') deleteWall(plan, id);
   else if (kind === 'opening') plan.openings = plan.openings.filter((o) => o.id !== id);
+  else if (kind === 'area') plan.areas = plan.areas.filter((a) => a.id !== id);
   else plan.furniture = plan.furniture.filter((f) => f.id !== id);
 }
 
