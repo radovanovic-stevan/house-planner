@@ -442,10 +442,10 @@
     {
       "id": "o_muhhn5vhz5xqj",
       "wallId": "w_muhhn5vggzra8",
-      "kind": "door",
+      "kind": "terraceDoor",
       "offset": 1,
       "width": 0.9,
-      "height": 2.1,
+      "height": 2.2,
       "sill": 0,
       "flipHinge": false,
       "flipSwing": false
@@ -486,7 +486,7 @@
     {
       "id": "o_muhhn5vh133e2h",
       "wallId": "w_muhhn5vg1lt8f",
-      "kind": "window",
+      "kind": "tallWindow",
       "offset": 2.1599999999999997,
       "width": 1.9,
       "height": 2.2,
@@ -519,7 +519,7 @@
     {
       "id": "o_muhhn5vh16n1dh",
       "wallId": "w_muhhn5vggzra8",
-      "kind": "window",
+      "kind": "tallWindow",
       "offset": 1.9000000000000001,
       "width": 0.9,
       "height": 2.2,
