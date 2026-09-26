@@ -1,5 +1,5 @@
 import { fmt, wallLength } from './geometry';
-import { DEFAULTS, isDoor, newId, OPENING_KINDS, OPENING_LABELS, type Furniture, type Opening, type OpeningKind, type Wall } from './model';
+import { AREA_LABELS, DEFAULTS, isDoor, newId, OPENING_KINDS, OPENING_LABELS, type Area, type AreaKind, type Furniture, type Opening, type OpeningKind, type Wall } from './model';
 import { clampOpening, clampOpeningsOnWall, deleteSelection, getWall, setWallLength } from './ops';
 import { findRooms } from './rooms';
 import type { Store } from './store';
@@ -64,6 +64,10 @@ export class Panel {
       const f = plan.furniture.find((x) => x.id === sel.id);
       if (f) return this.renderFurniture(f);
     }
+    if (sel?.kind === 'area') {
+      const a = plan.areas.find((x) => x.id === sel.id);
+      if (a) return this.renderArea(a);
+    }
     this.renderSummary();
   }
 
@@ -75,19 +79,24 @@ export class Panel {
       if (input.type === 'checkbox') input.checked = !!v;
       else input.value = typeof v === 'number' ? fmt(v, 3) : String(v);
     }
+    for (const el of this.root.querySelectorAll<HTMLElement>('[data-live]')) {
+      const v = this.getters.get(el.dataset.live!)?.();
+      if (v !== undefined) el.textContent = String(v);
+    }
     const summary = this.root.querySelector('[data-summary]');
     if (summary) this.render();
   }
 
   private getters = new Map<string, () => number | string | boolean>();
 
-  private heading(title: string, subtitle?: string) {
+  private heading(title: string, subtitle?: string): HTMLElement {
     const h = document.createElement('div');
     h.className = 'panel-head';
     h.innerHTML = `<h2></h2>${subtitle ? '<p></p>' : ''}`;
     h.querySelector('h2')!.textContent = title;
     if (subtitle) h.querySelector('p')!.textContent = subtitle;
     this.root.append(h);
+    return h;
   }
 
   private section(): HTMLElement {
@@ -228,6 +237,29 @@ export class Panel {
     this.buttons([['Delete', this.deleteSelected, 'danger']]);
   }
 
+  private renderArea(a: Area) {
+    const size = () => `${fmt(a.width * a.length)} m² outdoor, not counted in the floor area`;
+    const sub = this.heading(AREA_LABELS[a.kind], size()).querySelector('p')!;
+    sub.dataset.live = 'aarea';
+    this.getters.set('aarea', size);
+    const s = this.section();
+    this.select(
+      s,
+      'Type',
+      (Object.keys(AREA_LABELS) as AreaKind[]).map((k) => [k, AREA_LABELS[k]]),
+      () => a.kind,
+      (v) => {
+        a.kind = v as AreaKind;
+        this.renderedFor = '';
+      },
+    );
+    this.numberField(s, { key: 'aw', label: 'Width', get: () => a.width, set: (v) => (a.width = v), min: 0.1 });
+    this.numberField(s, { key: 'al', label: 'Length', get: () => a.length, set: (v) => (a.length = v), min: 0.1 });
+    this.numberField(s, { key: 'ax', label: 'Left edge x', get: () => a.x, set: (v) => (a.x = v) });
+    this.numberField(s, { key: 'ay', label: 'Top edge y', get: () => a.y, set: (v) => (a.y = v) });
+    this.buttons([['Delete', this.deleteSelected, 'danger']]);
+  }
+
   private renderFurniture(f: Furniture) {
     this.heading('Box');
     const s = this.section();
@@ -289,11 +321,13 @@ export class Panel {
         <div><b>${windows}</b><span>windows</span></div>
       </div>
       ${
-        rooms.length
+        rooms.length || plan.areas.length
           ? `<ol class="room-list">${rooms
               .slice()
               .sort((a, b) => b.area - a.area)
               .map((r) => `<li><span>Room</span><b>${fmt(r.area)} m²</b></li>`)
+              .join('')}${plan.areas
+              .map((a) => `<li><span>${AREA_LABELS[a.kind]} (outdoor)</span><b>${fmt(a.width * a.length)} m²</b></li>`)
               .join('')}</ol>`
           : ''
       }`;
@@ -308,6 +342,7 @@ export class Panel {
       <ul>
         <li><kbd>W</kbd> Wall: click to start, click to add corners. Walls are always horizontal or vertical. Type a number + <kbd>Enter</kbd> for an exact length. Finish with <kbd>Esc</kbd>, double-click or right-click; clicking the start point closes the room.</li>
         <li><kbd>D</kbd> Door / <kbd>T</kbd> Terrace door / <kbd>N</kbd> Window / <kbd>G</kbd> Floor-to-ceiling window: click on a wall.</li>
+        <li><kbd>A</kbd> Terrace / balcony: drag out the outdoor area. Its edges snap to the walls.</li>
         <li><kbd>B</kbd> Box: click to place furniture.</li>
         <li><kbd>V</kbd> Select: drag walls, corners, openings and boxes. Dragging a corner moves the wall lines through it. <kbd>Del</kbd> removes.</li>
       </ul>

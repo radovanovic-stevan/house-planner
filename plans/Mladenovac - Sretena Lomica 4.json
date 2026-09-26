@@ -550,5 +550,15 @@
       "flipSwing": false
     }
   ],
-  "furniture": []
+  "furniture": [],
+  "areas": [
+    {
+      "id": "a_terrace1",
+      "kind": "terrace",
+      "x": 3.9,
+      "y": -0.22,
+      "width": 2.25,
+      "length": 1.495
+    }
+  ]
 }

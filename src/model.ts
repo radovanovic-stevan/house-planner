@@ -66,17 +66,36 @@ export interface Furniture {
   color: string;
 }
 
+export type AreaKind = 'terrace' | 'balcony';
+
+export const AREA_LABELS: Record<AreaKind, string> = { terrace: 'Terrace', balcony: 'Balcony' };
+
+/** An outdoor floor area such as a terrace or balcony: an axis-aligned rectangle on the plan. */
+export interface Area {
+  id: string;
+  kind: AreaKind;
+  /** Top-left corner on the plan. */
+  x: number;
+  y: number;
+  /** Size along plan x. */
+  width: number;
+  /** Size along plan y. */
+  length: number;
+}
+
 export interface Plan {
   version: 1;
   walls: Wall[];
   openings: Opening[];
   furniture: Furniture[];
+  areas: Area[];
 }
 
 export type Selection =
   | { kind: 'wall'; id: string }
   | { kind: 'opening'; id: string }
   | { kind: 'furniture'; id: string }
+  | { kind: 'area'; id: string }
   | null;
 
 export const DEFAULTS = {
@@ -90,7 +109,7 @@ export const DEFAULTS = {
 };
 
 export function emptyPlan(): Plan {
-  return { version: 1, walls: [], openings: [], furniture: [] };
+  return { version: 1, walls: [], openings: [], furniture: [], areas: [] };
 }
 
 let counter = 0;
@@ -140,5 +159,13 @@ export function normalizePlan(raw: unknown): Plan {
     rotation: num(f.rotation, 0),
     color: typeof f.color === 'string' ? f.color : '#c8a27a',
   }));
-  return { version: 1, walls, openings, furniture };
+  const areas: Area[] = (Array.isArray(src.areas) ? src.areas : []).map((a) => ({
+    id: String(a.id ?? newId('a')),
+    kind: a.kind === 'balcony' ? 'balcony' : 'terrace',
+    x: num(a.x, 0),
+    y: num(a.y, 0),
+    width: Math.max(0.1, num(a.width, 1)),
+    length: Math.max(0.1, num(a.length, 1)),
+  }));
+  return { version: 1, walls, openings, furniture, areas };
 }

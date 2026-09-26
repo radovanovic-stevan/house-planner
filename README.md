@@ -15,6 +15,7 @@ npm run build    # typecheck + production build into dist/
 - `W` **Wall**: click to start, click to add corners. Walls are always horizontal or vertical. Type a number and press `Enter` for an exact length in meters. `Esc`, a double-click or a right-click ends the chain. Clicking the start point closes the room.
 - `D` **Door** / `N` **Window**: click on a wall.
 - `T` **Terrace door**: a glazed door out to a balcony or terrace. `G` **Tall window**: a floor-to-ceiling window (no sill). Click on a wall. The panel's **Type** menu switches any opening between door, terrace door, window and floor-to-ceiling window.
+- `A` **Terrace**: drag out a terrace or balcony. Its edges snap to wall faces. It's drawn hatched with its size, shows as a tiled slab in 3D and is listed as outdoor area, not counted in the floor total. The panel switches it between terrace and balcony and sets exact sizes; drag its corner handles to resize.
 - `B` **Box**: click to place a furniture box.
 - `V` **Select**: drag corners (the wall lines through a corner move with it, so walls stay straight), whole walls (joined walls stretch), openings along walls, and boxes. `Del` removes the selected item and the panel on the right edits exact sizes.
 - Closed rooms show their net floor area (inside the walls) in m².
@@ -53,7 +54,7 @@ To publish a plan, save it locally with `npm run dev`, then commit and push the 
 
 | File | What it does |
 | --- | --- |
-| `src/model.ts` | Plan data types (walls, openings, furniture), defaults, JSON validation |
+| `src/model.ts` | Plan data types (walls, openings, furniture, terrace/balcony areas), defaults, JSON validation |
 | `src/store.ts` | State, selection, UI mode, undo/redo, localStorage autosave |
 | `src/ops.ts` | Wall operations; walls stay split at junctions so they form a planar graph |
 | `src/rooms.ts` | Room detection (faces of the wall graph) and net area |

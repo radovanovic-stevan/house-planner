@@ -14,7 +14,7 @@ import {
   wallDir,
   wallLength,
 } from './geometry';
-import { DEFAULTS, isDoor, newId, OPENING_KINDS, type Furniture, type Opening, type OpeningKind, type Vec2, type Wall } from './model';
+import { AREA_LABELS, DEFAULTS, isDoor, newId, OPENING_KINDS, type Area, type Furniture, type Opening, type OpeningKind, type Vec2, type Wall } from './model';
 import {
   addWall,
   clampOpening,
@@ -42,6 +42,9 @@ const COLORS = {
   dim: '#8a867c',
   opening: '#2b2b2e',
   glass: 'rgba(120, 175, 225, 0.45)',
+  area: '#eee4d3',
+  areaHatch: '#c9b89b',
+  areaText: '#7a6647',
   accent: '#2f6fed',
   preview: '#2f6fed',
   invalid: '#d64545',
@@ -53,7 +56,10 @@ type Drag =
   | { kind: 'corner'; point: Vec2; moves: CornerMove[]; moved: boolean }
   | { kind: 'wall'; refs: EndpointRef[]; normal: Vec2; startWorld: Vec2; startPositions: Vec2[]; moved: boolean }
   | { kind: 'opening'; id: string; moved: boolean }
-  | { kind: 'furniture'; id: string; offset: Vec2; moved: boolean };
+  | { kind: 'furniture'; id: string; offset: Vec2; moved: boolean }
+  | { kind: 'area'; id: string; offset: Vec2; moved: boolean }
+  /** Drawing a new area, or resizing one by a corner: `anchor` is the fixed opposite corner. */
+  | { kind: 'areaCorner'; id: string; anchor: Vec2; moved: boolean; isNew: boolean };
 
 /** An endpoint moved by a corner drag, along x, y or both. */
 interface CornerMove {
@@ -71,6 +77,8 @@ type Hit =
   | { kind: 'opening'; opening: Opening }
   | { kind: 'furniture'; furniture: Furniture }
   | { kind: 'wall'; wall: Wall }
+  | { kind: 'area'; area: Area }
+  | { kind: 'areaCorner'; area: Area; anchor: Vec2 }
   | null;
 
 export class Editor2D {
@@ -234,6 +242,12 @@ export class Editor2D {
   private hitTest(p: Vec2): Hit {
     const plan = this.store.plan;
     const tol = this.px(8);
+    const sel = this.store.selection;
+    const selArea = sel?.kind === 'area' ? plan.areas.find((a) => a.id === sel.id) : undefined;
+    if (selArea) {
+      const cs = areaCorners(selArea);
+      for (let i = 0; i < 4; i++) if (dist(cs[i], p) < tol) return { kind: 'areaCorner', area: selArea, anchor: cs[(i + 2) % 4] };
+    }
     for (const w of plan.walls) {
       for (const e of [w.a, w.b]) if (dist(e, p) < tol) return { kind: 'endpoint', point: { ...e } };
     }
@@ -249,6 +263,10 @@ export class Editor2D {
     }
     const w = wallAt(plan, p, this.px(4));
     if (w) return { kind: 'wall', wall: w.wall };
+    for (let i = plan.areas.length - 1; i >= 0; i--) {
+      const a = plan.areas[i];
+      if (p.x >= a.x && p.x <= a.x + a.width && p.y >= a.y && p.y <= a.y + a.length) return { kind: 'area', area: a };
+    }
     return null;
   }
 
@@ -278,6 +296,7 @@ export class Editor2D {
     if (tool === 'wall') return this.wallClick(p);
     if (isOpeningTool(tool)) return this.placeOpening(tool, p);
     if (tool === 'furniture') return this.placeFurniture(p);
+    if (tool === 'area') return this.startArea(p);
 
     // select tool
     const hit = this.hitTest(p);
@@ -308,6 +327,12 @@ export class Editor2D {
     } else if (hit.kind === 'opening') {
       this.drag = { kind: 'opening', id: hit.opening.id, moved: false };
       store.select({ kind: 'opening', id: hit.opening.id });
+    } else if (hit.kind === 'area') {
+      const a = hit.area;
+      this.drag = { kind: 'area', id: a.id, offset: { x: a.x - p.x, y: a.y - p.y }, moved: false };
+      store.select({ kind: 'area', id: a.id });
+    } else if (hit.kind === 'areaCorner') {
+      this.drag = { kind: 'areaCorner', id: hit.area.id, anchor: hit.anchor, moved: false, isNew: false };
     } else {
       const f = hit.furniture;
       this.drag = { kind: 'furniture', id: f.id, offset: { x: f.x - p.x, y: f.y - p.y }, moved: false };
@@ -420,6 +445,26 @@ export class Editor2D {
         d.moved = true;
         this.store.emit();
       }
+    } else if (d?.kind === 'area') {
+      const a = plan.areas.find((x) => x.id === d.id);
+      if (a) {
+        const q = this.snapAreaPoint(add(p, d.offset));
+        a.x = q.x;
+        a.y = q.y;
+        d.moved = true;
+        this.store.emit();
+      }
+    } else if (d?.kind === 'areaCorner') {
+      const a = plan.areas.find((x) => x.id === d.id);
+      if (a) {
+        const q = this.snapAreaPoint(p);
+        a.x = Math.min(q.x, d.anchor.x);
+        a.y = Math.min(q.y, d.anchor.y);
+        a.width = Math.max(0.1, Math.abs(q.x - d.anchor.x));
+        a.length = Math.max(0.1, Math.abs(q.y - d.anchor.y));
+        d.moved = true;
+        this.store.emit();
+      }
     } else {
       this.hover = this.store.ui.tool === 'select' ? this.hitTest(p) : null;
     }
@@ -450,6 +495,20 @@ export class Editor2D {
     const d = this.drag;
     this.drag = null;
     if (!d || d.kind === 'pan') return;
+    if (d.kind === 'areaCorner' && d.isNew) {
+      const store = this.store;
+      const a = store.plan.areas.find((x) => x.id === d.id);
+      if (!d.moved || !a || a.width < 0.2 || a.length < 0.2) {
+        store.plan.areas = store.plan.areas.filter((x) => x.id !== d.id);
+        store.selection = null;
+        store.dropCheckpoint();
+      } else {
+        store.selection = { kind: 'area', id: d.id };
+        store.ui.tool = 'select';
+      }
+      store.emit();
+      return;
+    }
     if (!d.moved) {
       this.store.dropCheckpoint();
       return;
@@ -465,7 +524,7 @@ export class Editor2D {
     let c = 'crosshair';
     if (this.drag?.kind === 'pan') c = 'grabbing';
     else if (this.spaceDown) c = 'grab';
-    else if (tool === 'select') c = this.hover ? 'move' : 'default';
+    else if (tool === 'select') c = this.hover?.kind === 'areaCorner' ? 'nwse-resize' : this.hover ? 'move' : 'default';
     this.canvas.style.cursor = c;
   }
 
@@ -600,6 +659,38 @@ export class Editor2D {
     store.emit();
   }
 
+  /** Starts dragging out a new area; it is kept on release if it is big enough. */
+  private startArea(p: Vec2) {
+    const store = this.store;
+    const q = this.snapAreaPoint(p);
+    store.checkpoint();
+    const a: Area = { id: newId('a'), kind: 'terrace', x: q.x, y: q.y, width: 0.1, length: 0.1 };
+    store.plan.areas.push(a);
+    this.drag = { kind: 'areaCorner', id: a.id, anchor: q, moved: false, isNew: true };
+    store.emit();
+  }
+
+  /**
+   * Snaps an area corner to nearby wall faces and center lines (so a terrace lines up with
+   * the outside of the house), otherwise to the grid. Each axis snaps on its own.
+   */
+  private snapAreaPoint(p: Vec2): Vec2 {
+    const tol = this.px(8);
+    const g = snapToGrid(p, this.store.ui.snap);
+    let bx = { d: tol, v: g.x };
+    let by = { d: tol, v: g.y };
+    const near = (lo: number, hi: number, v: number) => v >= Math.min(lo, hi) - 0.5 && v <= Math.max(lo, hi) + 0.5;
+    for (const w of this.store.plan.walls) {
+      const t = w.thickness / 2;
+      if (isVertical(w) && near(w.a.y, w.b.y, p.y)) {
+        for (const v of [w.a.x - t, w.a.x, w.a.x + t]) if (Math.abs(v - p.x) < bx.d) bx = { d: Math.abs(v - p.x), v };
+      } else if (isHorizontal(w) && near(w.a.x, w.b.x, p.x)) {
+        for (const v of [w.a.y - t, w.a.y, w.a.y + t]) if (Math.abs(v - p.y) < by.d) by = { d: Math.abs(v - p.y), v };
+      }
+    }
+    return { x: bx.v, y: by.v };
+  }
+
   private placeFurniture(p: Vec2) {
     const store = this.store;
     const q = snapToGrid(p, store.ui.snap);
@@ -662,10 +753,12 @@ export class Editor2D {
       ctx.fill();
     }
 
+    this.drawAreas();
     this.drawFurniture();
     this.drawWalls();
     this.drawOpenings();
     this.drawDimensions();
+    this.drawAreaLabels();
 
     ctx.font = '600 13px system-ui, sans-serif';
     ctx.textAlign = 'center';
@@ -861,6 +954,62 @@ export class Editor2D {
     ctx.restore();
   }
 
+  /** Terraces and balconies: a hatched outdoor floor under everything else. */
+  private drawAreas() {
+    const ctx = this.ctx;
+    const sel = this.store.selection;
+    for (const a of this.store.plan.areas) {
+      const tl = this.toScreen({ x: a.x, y: a.y });
+      const w = a.width * this.zoom;
+      const h = a.length * this.zoom;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(tl.x, tl.y, w, h);
+      ctx.fillStyle = COLORS.area;
+      ctx.fill();
+      ctx.clip();
+      ctx.strokeStyle = COLORS.areaHatch;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      const step = 10;
+      for (let k = -h; k < w; k += step) {
+        ctx.moveTo(tl.x + k, tl.y + h);
+        ctx.lineTo(tl.x + k + h, tl.y);
+      }
+      ctx.stroke();
+      ctx.restore();
+      const selected = sel?.kind === 'area' && sel.id === a.id;
+      const hovered = this.hover?.kind === 'area' && this.hover.area.id === a.id;
+      ctx.strokeStyle = selected ? COLORS.accent : hovered ? '#555' : COLORS.areaText;
+      ctx.lineWidth = selected ? 2 : 1.5;
+      ctx.setLineDash([6, 4]);
+      ctx.strokeRect(tl.x, tl.y, w, h);
+      ctx.setLineDash([]);
+    }
+  }
+
+  /** Area names and sizes, plus resize handles on the selected area; drawn over the walls. */
+  private drawAreaLabels() {
+    const ctx = this.ctx;
+    const sel = this.store.selection;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const a of this.store.plan.areas) {
+      const c = this.toScreen({ x: a.x + a.width / 2, y: a.y + a.length / 2 });
+      const big = Math.min(a.width, a.length) * this.zoom > 40;
+      const text = `${AREA_LABELS[a.kind]} · ${fmt(a.width * a.length)} m²`;
+      ctx.font = '600 12px system-ui, sans-serif';
+      const tw = ctx.measureText(text).width + 10;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+      ctx.beginPath();
+      ctx.roundRect(c.x - tw / 2, c.y - 9, tw, 18, 4);
+      ctx.fill();
+      ctx.fillStyle = COLORS.areaText;
+      ctx.fillText(big ? text : AREA_LABELS[a.kind], c.x, c.y + 0.5);
+      if (sel?.kind === 'area' && sel.id === a.id) for (const p of areaCorners(a)) this.drawHandle(p);
+    }
+  }
+
   private drawFurniture() {
     const ctx = this.ctx;
     const sel = this.store.selection;
@@ -977,6 +1126,13 @@ export class Editor2D {
         const def = DEFAULTS[tool];
         this.drawOpening(pv.wall, tool, pv.offset, def.width, false, false, pv.valid ? COLORS.preview : COLORS.invalid, 0.8);
       }
+    } else if (tool === 'area' && this.drag?.kind !== 'areaCorner') {
+      const q = this.toScreen(this.snapAreaPoint(this.cursor));
+      ctx.beginPath();
+      ctx.arc(q.x, q.y, 4, 0, Math.PI * 2);
+      ctx.strokeStyle = COLORS.preview;
+      ctx.lineWidth = 2;
+      ctx.stroke();
     } else if (tool === 'furniture') {
       const q = snapToGrid(this.cursor, this.store.ui.snap);
       const { width, length } = DEFAULTS.furniture;
@@ -1027,3 +1183,11 @@ export class Editor2D {
 }
 
 const isOpeningTool = (tool: string): tool is OpeningKind => (OPENING_KINDS as string[]).includes(tool);
+
+/** Corners of an area, clockwise from the top-left. */
+const areaCorners = (a: Area): Vec2[] => [
+  { x: a.x, y: a.y },
+  { x: a.x + a.width, y: a.y },
+  { x: a.x + a.width, y: a.y + a.length },
+  { x: a.x, y: a.y + a.length },
+];

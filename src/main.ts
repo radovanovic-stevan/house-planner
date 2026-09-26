@@ -46,7 +46,7 @@ function setView(view: ViewMode) {
   if (view === store.ui.view) return;
   const patch: Partial<typeof store.ui> = { view };
   // drawing tools only exist on the plan
-  if (view === '3d' && ['wall', 'door', 'terraceDoor', 'window', 'tallWindow'].includes(store.ui.tool)) patch.tool = 'select';
+  if (view === '3d' && ['wall', 'door', 'terraceDoor', 'window', 'tallWindow', 'area'].includes(store.ui.tool)) patch.tool = 'select';
   store.setUi(patch);
 }
 
@@ -249,7 +249,7 @@ syncToolbar();
 
 // ---------- keyboard ----------
 
-const shortcuts: Record<string, Tool> = { v: 'select', w: 'wall', d: 'door', t: 'terraceDoor', n: 'window', g: 'tallWindow', b: 'furniture' };
+const shortcuts: Record<string, Tool> = { v: 'select', w: 'wall', d: 'door', t: 'terraceDoor', n: 'window', g: 'tallWindow', a: 'area', b: 'furniture' };
 
 function isTyping(e: KeyboardEvent) {
   const t = e.target as HTMLElement;
