@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { rectCorners, snapToGrid, wallDir, wallLength } from './geometry';
-import { DEFAULTS, newId, type Furniture, type Opening, type Selection, type Wall } from './model';
+import { DEFAULTS, isDoor, newId, type Furniture, type Opening, type Selection, type Wall } from './model';
 import { wallEndExtensions } from './ops';
 import { findRooms } from './rooms';
 import type { Store } from './store';
@@ -14,6 +14,7 @@ const COLORS = {
   wallSelected: 0xbcd0fa,
   glass: 0x9ec3e6,
   door: 0xa47b56,
+  frame: 0x5c6168,
   accent: 0x2f6fed,
   edge: 0x3a3a3a,
 };
@@ -238,6 +239,7 @@ export class View3D {
     const glassSelMat = new THREE.MeshStandardMaterial({ color: COLORS.accent, transparent: true, opacity: 0.5 });
     const doorMat = new THREE.MeshStandardMaterial({ color: COLORS.door, roughness: 0.7 });
     const doorSelMat = new THREE.MeshStandardMaterial({ color: COLORS.accent, roughness: 0.7 });
+    const frameMat = new THREE.MeshStandardMaterial({ color: COLORS.frame, roughness: 0.5, metalness: 0.2 });
 
     for (const w of plan.walls) {
       const openings = plan.openings.filter((o) => o.wallId === w.id).sort((a, b) => a.offset - b.offset);
@@ -245,7 +247,8 @@ export class View3D {
       this.buildWall(w, openings, exts.get(w.id)!, selected ? wallSelMat : wallMat);
       for (const o of openings) {
         const oSel = sel?.kind === 'opening' && sel.id === o.id;
-        if (o.kind === 'window') this.buildWindow(w, o, oSel ? glassSelMat : glassMat);
+        if (!isDoor(o.kind)) this.buildWindow(w, o, oSel ? glassSelMat : glassMat);
+        else if (o.kind === 'terraceDoor') this.buildDoor(w, o, oSel ? doorSelMat : frameMat, oSel ? glassSelMat : glassMat);
         else this.buildDoor(w, o, oSel ? doorSelMat : doorMat);
       }
     }
@@ -308,8 +311,11 @@ export class View3D {
     this.structure.add(mesh);
   }
 
-  /** Door leaf standing open at 90°, matching the swing drawn on the plan. */
-  private buildDoor(w: Wall, o: Opening, mat: THREE.Material) {
+  /**
+   * Door leaf standing open at 90°, matching the swing drawn on the plan.
+   * With `glass`, the leaf is a glazed terrace door: a frame of `mat` around a pane of `glass`.
+   */
+  private buildDoor(w: Wall, o: Opening, mat: THREE.Material, glass?: THREE.Material) {
     const d = wallDir(w);
     const n = { x: -d.y, y: d.x };
     const side = o.flipSwing ? -1 : 1;
@@ -322,12 +328,28 @@ export class View3D {
     const cx = hx + n.x * side * (o.width / 2) + d.x * inset;
     const cy = hy + n.y * side * (o.width / 2) + d.y * inset;
     const h = Math.min(o.height, 2.4);
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(leafT, h, o.width), mat);
-    mesh.position.set(cx, o.sill + h / 2, cy);
-    mesh.rotation.y = -Math.atan2(d.y, d.x);
-    mesh.castShadow = true;
-    mesh.userData.pick = { kind: 'opening', id: o.id } satisfies Pick;
-    if (!this.cutaway) this.structure.add(mesh);
+    const pick: Pick = { kind: 'opening', id: o.id };
+    const leaf = new THREE.Group();
+    leaf.position.set(cx, o.sill + h / 2, cy);
+    leaf.rotation.y = -Math.atan2(d.y, d.x);
+    const part = (sx: number, sy: number, sz: number, y: number, z: number, m: THREE.Material) => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), m);
+      mesh.position.set(0, y, z);
+      mesh.castShadow = m !== glass;
+      mesh.userData.pick = pick;
+      leaf.add(mesh);
+    };
+    if (glass) {
+      const f = Math.min(0.07, o.width / 4, h / 4);
+      part(leafT, f, o.width, h / 2 - f / 2, 0, mat);
+      part(leafT, f, o.width, -h / 2 + f / 2, 0, mat);
+      part(leafT, h - 2 * f, f, 0, o.width / 2 - f / 2, mat);
+      part(leafT, h - 2 * f, f, 0, -o.width / 2 + f / 2, mat);
+      part(leafT / 2, h - 2 * f, o.width - 2 * f, 0, 0, glass);
+    } else {
+      part(leafT, h, o.width, 0, 0, mat);
+    }
+    if (!this.cutaway) this.structure.add(leaf);
   }
 
   // ---------- furniture ----------

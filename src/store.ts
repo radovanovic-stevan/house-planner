@@ -6,7 +6,7 @@ const MAX_HISTORY = 200;
 
 type Listener = () => void;
 
-export type Tool = 'select' | 'wall' | 'door' | 'window' | 'furniture';
+export type Tool = 'select' | 'wall' | 'door' | 'terraceDoor' | 'window' | 'tallWindow' | 'furniture';
 export type ViewMode = '2d' | '3d';
 
 export interface UiState {

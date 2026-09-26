@@ -1,5 +1,5 @@
 import { fmt, wallLength } from './geometry';
-import { DEFAULTS, newId, type Furniture, type Opening, type Wall } from './model';
+import { DEFAULTS, isDoor, newId, OPENING_KINDS, OPENING_LABELS, type Furniture, type Opening, type OpeningKind, type Wall } from './model';
 import { clampOpening, clampOpeningsOnWall, deleteSelection, getWall, setWallLength } from './ops';
 import { findRooms } from './rooms';
 import type { Store } from './store';
@@ -137,6 +137,17 @@ export class Panel {
     parent.append(row);
   }
 
+  private select(parent: HTMLElement, label: string, options: [string, string][], get: () => string, set: (v: string) => void) {
+    const row = document.createElement('label');
+    row.className = 'field wide';
+    row.innerHTML = `<span></span><select></select>`;
+    row.querySelector('span')!.textContent = label;
+    const input = row.querySelector('select')!;
+    for (const [value, text] of options) input.add(new Option(text, value, false, value === get()));
+    input.addEventListener('change', () => this.change(() => set(input.value)));
+    parent.append(row);
+  }
+
   private buttons(defs: [string, () => void, string?][]) {
     const row = document.createElement('div');
     row.className = 'panel-actions';
@@ -181,11 +192,24 @@ export class Panel {
 
   private renderOpening(o: Opening) {
     const plan = this.store.plan;
-    this.heading(o.kind === 'door' ? 'Door' : 'Window');
+    this.heading(OPENING_LABELS[o.kind]);
     const s = this.section();
+    this.select(
+      s,
+      'Type',
+      OPENING_KINDS.map((k) => [k, OPENING_LABELS[k]]),
+      () => o.kind,
+      (v) => {
+        const kind = v as OpeningKind;
+        o.kind = kind;
+        o.height = DEFAULTS[kind].height;
+        o.sill = DEFAULTS[kind].sill;
+        this.renderedFor = '';
+      },
+    );
     this.numberField(s, { key: 'w', label: 'Width', get: () => o.width, set: (v) => ((o.width = v), clampOpening(plan, o)), min: 0.1 });
     this.numberField(s, { key: 'h', label: 'Height', get: () => o.height, set: (v) => (o.height = v), min: 0.1 });
-    this.numberField(s, { key: 's', label: o.kind === 'door' ? 'Threshold' : 'Sill height', get: () => o.sill, set: (v) => (o.sill = v), min: 0 });
+    this.numberField(s, { key: 's', label: isDoor(o.kind) ? 'Threshold' : 'Sill height', get: () => o.sill, set: (v) => (o.sill = v), min: 0 });
     this.numberField(s, {
       key: 'off',
       label: 'From wall start',
@@ -193,25 +217,15 @@ export class Panel {
       set: (v) => ((o.offset = v + o.width / 2), clampOpening(plan, o)),
       min: 0,
     });
-    if (o.kind === 'door') {
+    if (isDoor(o.kind)) {
       this.checkbox(s, 'fh', 'Flip hinge side', () => o.flipHinge, (v) => (o.flipHinge = v));
       this.checkbox(s, 'fs', 'Flip swing direction', () => o.flipSwing, (v) => (o.flipSwing = v));
     }
-    const other = o.kind === 'door' ? 'window' : 'door';
-    this.buttons([
-      [
-        `Change to ${other}`,
-        () =>
-          this.change(() => {
-            o.kind = other;
-            const d = DEFAULTS[other];
-            o.height = d.height;
-            o.sill = d.sill;
-            this.renderedFor = '';
-          }),
-      ],
-      ['Delete', this.deleteSelected, 'danger'],
-    ]);
+    if (o.kind === 'tallWindow') {
+      const w = getWall(plan, o.wallId);
+      if (w) this.buttons([['Up to the ceiling', () => this.change(() => ((o.sill = 0), (o.height = w.height)))]]);
+    }
+    this.buttons([['Delete', this.deleteSelected, 'danger']]);
   }
 
   private renderFurniture(f: Furniture) {
@@ -265,7 +279,7 @@ export class Panel {
     const box = document.createElement('div');
     box.className = 'summary';
     box.dataset.summary = '';
-    const doors = plan.openings.filter((o) => o.kind === 'door').length;
+    const doors = plan.openings.filter((o) => isDoor(o.kind)).length;
     const windows = plan.openings.length - doors;
     box.innerHTML = `
       <div class="stat-grid">
@@ -293,7 +307,7 @@ export class Panel {
       <h3>Drawing</h3>
       <ul>
         <li><kbd>W</kbd> Wall: click to start, click to add corners. Walls are always horizontal or vertical. Type a number + <kbd>Enter</kbd> for an exact length. Finish with <kbd>Esc</kbd>, double-click or right-click; clicking the start point closes the room.</li>
-        <li><kbd>D</kbd> Door / <kbd>N</kbd> Window: click on a wall.</li>
+        <li><kbd>D</kbd> Door / <kbd>T</kbd> Terrace door / <kbd>N</kbd> Window / <kbd>G</kbd> Floor-to-ceiling window: click on a wall.</li>
         <li><kbd>B</kbd> Box: click to place furniture.</li>
         <li><kbd>V</kbd> Select: drag walls, corners, openings and boxes. Dragging a corner moves the wall lines through it. <kbd>Del</kbd> removes.</li>
       </ul>

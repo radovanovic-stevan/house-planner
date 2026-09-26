@@ -14,6 +14,7 @@ npm run build    # typecheck + production build into dist/
 
 - `W` **Wall**: click to start, click to add corners. Walls are always horizontal or vertical. Type a number and press `Enter` for an exact length in meters. `Esc`, a double-click or a right-click ends the chain. Clicking the start point closes the room.
 - `D` **Door** / `N` **Window**: click on a wall.
+- `T` **Terrace door**: a glazed door out to a balcony or terrace. `G` **Tall window**: a floor-to-ceiling window (no sill). Click on a wall. The panel's **Type** menu switches any opening between door, terrace door, window and floor-to-ceiling window.
 - `B` **Box**: click to place a furniture box.
 - `V` **Select**: drag corners (the wall lines through a corner move with it, so walls stay straight), whole walls (joined walls stretch), openings along walls, and boxes. `Del` removes the selected item and the panel on the right edits exact sizes.
 - Closed rooms show their net floor area (inside the walls) in m².

@@ -14,7 +14,7 @@ import {
   wallDir,
   wallLength,
 } from './geometry';
-import { DEFAULTS, newId, type Furniture, type Opening, type OpeningKind, type Vec2, type Wall } from './model';
+import { DEFAULTS, isDoor, newId, OPENING_KINDS, type Furniture, type Opening, type OpeningKind, type Vec2, type Wall } from './model';
 import {
   addWall,
   clampOpening,
@@ -41,6 +41,7 @@ const COLORS = {
   roomText: '#6b6860',
   dim: '#8a867c',
   opening: '#2b2b2e',
+  glass: 'rgba(120, 175, 225, 0.45)',
   accent: '#2f6fed',
   preview: '#2f6fed',
   invalid: '#d64545',
@@ -275,7 +276,7 @@ export class Editor2D {
 
     const tool = this.store.ui.tool;
     if (tool === 'wall') return this.wallClick(p);
-    if (tool === 'door' || tool === 'window') return this.placeOpening(tool, p);
+    if (isOpeningTool(tool)) return this.placeOpening(tool, p);
     if (tool === 'furniture') return this.placeFurniture(p);
 
     // select tool
@@ -810,7 +811,13 @@ export class Editor2D {
     line(add(c0, scale(n, t)), sub(c0, scale(n, t)));
     line(add(c1, scale(n, t)), sub(c1, scale(n, t)));
 
-    if (kind === 'window') {
+    if (!isDoor(kind)) {
+      if (kind === 'tallWindow') {
+        // tint the whole gap: glass down to the floor
+        this.pathPoly([add(c0, scale(n, t)), add(c1, scale(n, t)), sub(c1, scale(n, t)), sub(c0, scale(n, t))]);
+        ctx.fillStyle = COLORS.glass;
+        ctx.fill();
+      }
       line(add(c0, scale(n, t)), add(c1, scale(n, t)));
       line(sub(c0, scale(n, t)), sub(c1, scale(n, t)));
       ctx.lineWidth = 1;
@@ -822,6 +829,20 @@ export class Editor2D {
       const hingeFace = add(hinge, scale(n, t * side));
       const leafEnd = add(hingeFace, scale(n, width * side));
       line(hingeFace, leafEnd);
+      if (kind === 'terraceDoor') {
+        // glazed leaf: a second line alongside the leaf, with glass between
+        const inward = scale(d, (flipHinge ? -1 : 1) * this.px(4));
+        const g0 = add(hingeFace, inward);
+        const g1 = add(leafEnd, inward);
+        this.pathPoly([hingeFace, leafEnd, g1, g0]);
+        ctx.fillStyle = COLORS.glass;
+        ctx.fill();
+        line(g0, g1);
+        // sill line across the gap marks the way out
+        ctx.lineWidth = 1;
+        line(c0, c1);
+        ctx.lineWidth = 1.5;
+      }
       // swing arc from the open leaf back to the closed position
       const hs = this.toScreen(hingeFace);
       const a0 = Math.atan2(leafEnd.y - hingeFace.y, leafEnd.x - hingeFace.x);
@@ -950,7 +971,7 @@ export class Editor2D {
       ctx.strokeStyle = COLORS.preview;
       ctx.lineWidth = 2;
       ctx.stroke();
-    } else if (tool === 'door' || tool === 'window') {
+    } else if (isOpeningTool(tool)) {
       const pv = this.openingPreview(tool, this.cursor);
       if (pv) {
         const def = DEFAULTS[tool];
@@ -1004,3 +1025,5 @@ export class Editor2D {
     ctx.fillText(`${m} m`, x + len / 2, y - 3);
   }
 }
+
+const isOpeningTool = (tool: string): tool is OpeningKind => (OPENING_KINDS as string[]).includes(tool);

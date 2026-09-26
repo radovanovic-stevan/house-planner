@@ -14,7 +14,23 @@ export interface Wall {
   height: number;
 }
 
-export type OpeningKind = 'door' | 'window';
+/**
+ * `terraceDoor` is a glazed door out to a balcony or terrace.
+ * `tallWindow` is a floor-to-ceiling window (fixed glass, no sill).
+ */
+export type OpeningKind = 'door' | 'terraceDoor' | 'window' | 'tallWindow';
+
+export const OPENING_KINDS: OpeningKind[] = ['door', 'terraceDoor', 'window', 'tallWindow'];
+
+export const OPENING_LABELS: Record<OpeningKind, string> = {
+  door: 'Door',
+  terraceDoor: 'Terrace door',
+  window: 'Window',
+  tallWindow: 'Floor-to-ceiling window',
+};
+
+/** Doors have a leaf that swings; windows are fixed glass. */
+export const isDoor = (kind: OpeningKind) => kind === 'door' || kind === 'terraceDoor';
 
 export interface Opening {
   id: string;
@@ -24,11 +40,11 @@ export interface Opening {
   offset: number;
   width: number;
   height: number;
-  /** Height of the bottom edge above the floor (0 for doors). */
+  /** Height of the bottom edge above the floor (0 for doors and floor-to-ceiling windows). */
   sill: number;
-  /** Door only: hinge at the "b" end instead of the "a" end. */
+  /** Doors only: hinge at the "b" end instead of the "a" end. */
   flipHinge: boolean;
-  /** Door only: swing to the other side of the wall. */
+  /** Doors only: swing to the other side of the wall. */
   flipSwing: boolean;
 }
 
@@ -67,7 +83,9 @@ export const DEFAULTS = {
   wallThickness: 0.2,
   wallHeight: 2.7,
   door: { width: 0.9, height: 2.1, sill: 0 },
+  terraceDoor: { width: 0.9, height: 2.2, sill: 0 },
   window: { width: 1.2, height: 1.2, sill: 0.9 },
+  tallWindow: { width: 1.2, height: 2.2, sill: 0 },
   furniture: { width: 1, length: 1, height: 0.8 },
 };
 
@@ -96,7 +114,7 @@ export function normalizePlan(raw: unknown): Plan {
   const openings: Opening[] = (Array.isArray(src.openings) ? src.openings : [])
     .filter((o) => wallIds.has(o.wallId))
     .map((o) => {
-      const kind: OpeningKind = o.kind === 'window' ? 'window' : 'door';
+      const kind: OpeningKind = OPENING_KINDS.includes(o.kind) ? o.kind : 'door';
       const d = DEFAULTS[kind];
       return {
         id: String(o.id ?? newId('o')),

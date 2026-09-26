@@ -243,6 +243,18 @@ main {
   border-radius: var(--radius);
   background: var(--bg);
 }
+.field.wide {
+  grid-template-columns: auto 1fr;
+}
+.field select {
+  height: 30px;
+  width: 100%;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+}
 .field.check {
   display: flex;
   gap: 8px;
