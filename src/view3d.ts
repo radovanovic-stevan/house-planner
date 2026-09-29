@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { rectCorners, snapToGrid, wallDir, wallLength } from './geometry';
-import { DEFAULTS, isDoor, newId, type Furniture, type Opening, type Selection, type Wall } from './model';
+import { dist, pointInPolygon, rectCorners, snapToGrid, wallDir, wallLength } from './geometry';
+import { DEFAULTS, isDoor, newId, type Furniture, type Opening, type Selection, type Vec2, type Wall } from './model';
 import { wallEndExtensions } from './ops';
 import { findRooms } from './rooms';
 import type { Store } from './store';
@@ -26,6 +26,24 @@ const CUTAWAY_HEIGHT = 1.1;
 type Pick = { kind: 'wall' | 'opening' | 'furniture' | 'area'; id: string };
 
 type Drag = { id: string; offset: THREE.Vector2; moved: boolean };
+
+/** Rectangle on the plan that the walker can't enter: center, unit axis along its length, half sizes. */
+type Collider = { c: Vec2; u: Vec2; hu: number; hv: number };
+
+const WALK = {
+  eyeHeight: 1.6,
+  radius: 0.22,
+  speed: 1.5,
+  runSpeed: 3.5,
+  fov: 70,
+  lookSensitivity: 0.0022,
+};
+
+/** Doors (terrace doors too) you can walk through; windows are solid, even floor-to-ceiling ones. */
+const isPassable = (o: Opening) => isDoor(o.kind) && o.sill < 0.3 && o.sill + o.height > 1.8;
+
+/** Furniture you bump into: something between your feet and your head. */
+const blocksWalking = (f: Furniture) => f.elevation < WALK.eyeHeight && f.elevation + f.height > 0.25;
 
 // plan (x, y) -> world (x, 0, y); plan rotation (clockwise degrees, y down) -> rotation about world Y
 const planAngleToY = (deg: number) => -(deg * Math.PI) / 180;
@@ -52,6 +70,15 @@ export class View3D {
   private framed = false;
   private needsRender = true;
   private running = false;
+  private colliders: Collider[] = [];
+  private walk: {
+    yaw: number;
+    pitch: number;
+    keys: Set<string>;
+    last: number;
+    saved: { position: THREE.Vector3; target: THREE.Vector3; cutaway: boolean };
+  } | null = null;
+  private walkHint!: HTMLElement;
 
   constructor(
     private container: HTMLElement,
@@ -104,6 +131,14 @@ export class View3D {
     el.addEventListener('pointerdown', (e) => this.onPointerDown(e));
     el.addEventListener('pointermove', (e) => this.onPointerMove(e));
     el.addEventListener('pointerup', (e) => this.onPointerUp(e));
+    el.addEventListener('dblclick', (e) => this.onDoubleClick(e));
+    el.addEventListener('mousemove', (e) => this.onWalkLook(e));
+    document.addEventListener('pointerlockchange', () => {
+      if (this.walk && document.pointerLockElement !== el) this.exitWalk();
+    });
+    window.addEventListener('keydown', (e) => this.onWalkKey(e, true));
+    window.addEventListener('keyup', (e) => this.onWalkKey(e, false));
+    window.addEventListener('blur', () => this.walk?.keys.clear());
     el.addEventListener('pointerleave', () => {
       this.placePreview.visible = false;
       this.needsRender = true;
@@ -120,16 +155,24 @@ export class View3D {
     const bar = document.createElement('div');
     bar.className = 'overlay-3d';
     bar.innerHTML = `
+      <button data-act="walk" title="Walk through the house at eye height (P), or double-click the floor to start there">Walk inside</button>
       <button data-act="cutaway" title="Cut walls down to see inside (C)">Cutaway walls</button>
       <button data-act="top" title="Look straight down">Top view</button>
       <button data-act="reset" title="Frame the whole house">Reset camera</button>`;
     bar.addEventListener('click', (e) => {
       const act = (e.target as HTMLElement).closest('button')?.dataset.act;
+      if (act === 'walk') this.enterWalk();
       if (act === 'cutaway') this.toggleCutaway();
       if (act === 'top') this.frame(true);
       if (act === 'reset') this.frame(false);
     });
-    this.container.append(bar);
+    this.walkHint = document.createElement('div');
+    this.walkHint.className = 'walk-hint';
+    this.walkHint.hidden = true;
+    this.walkHint.innerHTML = `
+      <div class="crosshair"></div>
+      <div class="walk-keys"><b>WASD</b> or arrows to move · <b>mouse</b> to look · <b>Shift</b> to run · <b>Esc</b> to leave</div>`;
+    this.container.append(bar, this.walkHint);
   }
 
   toggleCutaway() {
@@ -161,7 +204,8 @@ export class View3D {
       return;
     }
     requestAnimationFrame(this.loop);
-    this.controls.update();
+    if (this.walk) this.stepWalk();
+    else this.controls.update();
     if (this.needsRender) {
       this.needsRender = false;
       this.renderer.render(this.scene, this.camera);
@@ -169,7 +213,10 @@ export class View3D {
   };
 
   private sync() {
-    if (!this.active) return;
+    if (!this.active) {
+      if (this.walk) this.exitWalk();
+      return;
+    }
     this.resize();
     this.syncStructure();
     this.syncFurniture();
@@ -234,6 +281,7 @@ export class View3D {
 
     disposeGroup(this.structure);
     const exts = wallEndExtensions(plan);
+    this.colliders = [];
     const wallMat = new THREE.MeshStandardMaterial({ color: COLORS.wall, roughness: 0.9 });
     const wallSelMat = new THREE.MeshStandardMaterial({ color: COLORS.wallSelected, roughness: 0.9 });
     const glassMat = new THREE.MeshStandardMaterial({ color: COLORS.glass, transparent: true, opacity: 0.35, roughness: 0.1, metalness: 0.1 });
@@ -300,6 +348,7 @@ export class View3D {
 
   private buildWall(w: Wall, openings: Opening[], ext: { a: number; b: number }, mat: THREE.Material) {
     const L = wallLength(w);
+    this.addWallColliders(w, openings, ext);
     const top = this.wallTop(w);
     const pick: Pick = { kind: 'wall', id: w.id };
     let s = -ext.a;
@@ -367,6 +416,154 @@ export class View3D {
     if (!this.cutaway) this.structure.add(leaf);
   }
 
+  /** Solid stretches of the wall between the openings you can walk through. */
+  private addWallColliders(w: Wall, openings: Opening[], ext: { a: number; b: number }) {
+    const L = wallLength(w);
+    const d = wallDir(w);
+    const add = (s0: number, s1: number) => {
+      if (s1 - s0 < 1e-4) return;
+      const mid = (s0 + s1) / 2;
+      this.colliders.push({ c: { x: w.a.x + d.x * mid, y: w.a.y + d.y * mid }, u: d, hu: (s1 - s0) / 2, hv: w.thickness / 2 });
+    };
+    let s = -ext.a;
+    for (const o of openings.filter(isPassable)) {
+      add(s, Math.max(0, o.offset - o.width / 2));
+      s = Math.max(s, Math.min(L, o.offset + o.width / 2));
+    }
+    add(s, L + ext.b);
+  }
+
+  private allColliders(): Collider[] {
+    const boxes = this.store.plan.furniture.filter(blocksWalking).map((f) => {
+      const r = (f.rotation * Math.PI) / 180;
+      return { c: { x: f.x, y: f.y }, u: { x: Math.cos(r), y: Math.sin(r) }, hu: f.width / 2, hv: f.length / 2 };
+    });
+    return [...this.colliders, ...boxes];
+  }
+
+  // ---------- walking ----------
+
+  get walking() {
+    return !!this.walk;
+  }
+
+  /** Starts first-person mode at a plan point (or a roomy spot in the largest room), facing along yaw. */
+  enterWalk(at?: Vec2, yaw?: number) {
+    if (this.walk || !this.active) return;
+    const el = this.renderer.domElement;
+    const saved = { position: this.camera.position.clone(), target: this.controls.target.clone(), cutaway: this.cutaway };
+    if (this.cutaway) this.toggleCutaway();
+    const colliders = this.allColliders();
+    const start = at ? resolveCollisions(at, colliders) : this.spawnPoint(colliders);
+    const dir = this.camera.getWorldDirection(new THREE.Vector3());
+    this.walk = { yaw: yaw ?? Math.atan2(-dir.x, -dir.z), pitch: 0, keys: new Set(), last: performance.now(), saved };
+    this.controls.enabled = false;
+    this.camera.fov = WALK.fov;
+    this.camera.updateProjectionMatrix();
+    this.camera.position.set(start.x, WALK.eyeHeight, start.y);
+    this.applyLook();
+    this.store.select(null);
+    this.placePreview.visible = false;
+    this.walkHint.hidden = false;
+    this.container.querySelector('[data-act="walk"]')!.classList.add('active');
+    el.style.cursor = 'none';
+    el.requestPointerLock?.()?.catch?.(() => {});
+  }
+
+  exitWalk() {
+    const walk = this.walk;
+    if (!walk) return;
+    this.walk = null;
+    if (document.pointerLockElement === this.renderer.domElement) document.exitPointerLock();
+    this.camera.fov = 50;
+    this.camera.updateProjectionMatrix();
+    this.camera.position.copy(walk.saved.position);
+    this.controls.target.copy(walk.saved.target);
+    this.controls.enabled = true;
+    this.controls.update();
+    if (walk.saved.cutaway !== this.cutaway) this.toggleCutaway();
+    this.walkHint.hidden = true;
+    this.container.querySelector('[data-act="walk"]')!.classList.remove('active');
+    this.renderer.domElement.style.cursor = 'default';
+    this.needsRender = true;
+  }
+
+  /** The spot in the largest room that is farthest from walls and furniture (capped), preferring its middle. */
+  private spawnPoint(colliders: Collider[]): Vec2 {
+    const rooms = findRooms(this.store.plan).sort((a, b) => b.area - a.area);
+    if (!rooms.length) {
+      const c = this.bounds().getCenter(new THREE.Vector3());
+      return resolveCollisions({ x: c.x, y: c.z + this.bounds().getSize(new THREE.Vector3()).z / 2 + 2 }, colliders);
+    }
+    const room = rooms[0];
+    const xs = room.floor.map((p) => p.x);
+    const ys = room.floor.map((p) => p.y);
+    let best = room.center;
+    let bestScore = -Infinity;
+    for (let x = Math.min(...xs); x <= Math.max(...xs); x += 0.2) {
+      for (let y = Math.min(...ys); y <= Math.max(...ys); y += 0.2) {
+        const p = { x, y };
+        if (!pointInPolygon(p, room.floor)) continue;
+        const score = Math.min(clearance(p, colliders), 1) - 0.05 * dist(p, room.center);
+        if (score > bestScore) {
+          bestScore = score;
+          best = p;
+        }
+      }
+    }
+    return best;
+  }
+
+  private applyLook() {
+    const w = this.walk!;
+    this.camera.rotation.set(w.pitch, w.yaw, 0, 'YXZ');
+    this.needsRender = true;
+  }
+
+  private onWalkLook(e: MouseEvent) {
+    const w = this.walk;
+    if (!w) return;
+    // without pointer lock (e.g. the browser refused it), look around by dragging
+    if (document.pointerLockElement !== this.renderer.domElement && !e.buttons) return;
+    w.yaw -= e.movementX * WALK.lookSensitivity;
+    w.pitch = THREE.MathUtils.clamp(w.pitch - e.movementY * WALK.lookSensitivity, -1.45, 1.45);
+    this.applyLook();
+  }
+
+  private onWalkKey(e: KeyboardEvent, down: boolean) {
+    const w = this.walk;
+    if (!w) {
+      if (down && !e.metaKey && !e.ctrlKey && e.key.toLowerCase() === 'p' && this.active && !isTyping(e)) this.enterWalk();
+      return;
+    }
+    if (down && e.key === 'Escape') return this.exitWalk();
+    if (e.metaKey || e.ctrlKey) return;
+    if (down) w.keys.add(e.code);
+    else w.keys.delete(e.code);
+    e.preventDefault();
+  }
+
+  private stepWalk() {
+    const w = this.walk!;
+    const now = performance.now();
+    const dt = Math.min((now - w.last) / 1000, 0.05);
+    w.last = now;
+    const k = w.keys;
+    const fwd = (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0) - (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0);
+    const side = (k.has('KeyD') || k.has('ArrowRight') ? 1 : 0) - (k.has('KeyA') || k.has('ArrowLeft') ? 1 : 0);
+    if (!fwd && !side) return;
+    const speed = (k.has('ShiftLeft') || k.has('ShiftRight') ? WALK.runSpeed : WALK.speed) * dt;
+    const n = Math.hypot(fwd, side);
+    const sin = Math.sin(w.yaw);
+    const cos = Math.cos(w.yaw);
+    // camera looks down -z at yaw 0; plan (x, y) is world (x, z)
+    const dx = ((-sin * fwd + cos * side) / n) * speed;
+    const dy = ((-cos * fwd - sin * side) / n) * speed;
+    const p = resolveCollisions({ x: this.camera.position.x + dx, y: this.camera.position.z + dy }, this.allColliders());
+    this.camera.position.set(p.x, WALK.eyeHeight, p.y);
+    this.needsRender = true;
+  }
+
   // ---------- furniture ----------
 
   private syncFurniture() {
@@ -432,7 +629,20 @@ export class View3D {
     return this.raycaster.ray.intersectPlane(this.floorPlane, new THREE.Vector3());
   }
 
+  private onDoubleClick(e: MouseEvent) {
+    if (this.walk || this.store.ui.tool === 'furniture') return;
+    const p = this.floorPoint(e as PointerEvent);
+    if (!p) return;
+    const dir = new THREE.Vector3(p.x - this.camera.position.x, 0, p.z - this.camera.position.z);
+    this.enterWalk({ x: p.x, y: p.z }, Math.atan2(-dir.x, -dir.z));
+  }
+
   private onPointerDown(e: PointerEvent) {
+    if (this.walk) {
+      // clicking again after the browser dropped pointer lock picks it back up
+      if (document.pointerLockElement !== this.renderer.domElement) this.renderer.domElement.requestPointerLock?.()?.catch?.(() => {});
+      return;
+    }
     if (e.button !== 0) return;
     this.downAt = { x: e.clientX, y: e.clientY };
     const store = this.store;
@@ -455,6 +665,7 @@ export class View3D {
   }
 
   private onPointerMove(e: PointerEvent) {
+    if (this.walk) return;
     const store = this.store;
     const el = this.renderer.domElement;
     if (this.drag) {
@@ -486,6 +697,7 @@ export class View3D {
   }
 
   private onPointerUp(e: PointerEvent) {
+    if (this.walk) return;
     const store = this.store;
     const wasClick = this.downAt && Math.hypot(e.clientX - this.downAt.x, e.clientY - this.downAt.y) < 5;
     this.downAt = null;
@@ -524,6 +736,64 @@ export class View3D {
     // plain click: select whatever is under the cursor (walls/openings too, for editing in the panel)
     store.select(this.pick(e));
   }
+}
+
+function isTyping(e: KeyboardEvent) {
+  const t = e.target as HTMLElement;
+  return t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA';
+}
+
+/** Closest point of the collider to p, and whether p is inside it. */
+function closestOnCollider(p: Vec2, c: Collider) {
+  const dx = p.x - c.c.x;
+  const dy = p.y - c.c.y;
+  const lu = dx * c.u.x + dy * c.u.y;
+  const lv = -dx * c.u.y + dy * c.u.x;
+  const cu = THREE.MathUtils.clamp(lu, -c.hu, c.hu);
+  const cv = THREE.MathUtils.clamp(lv, -c.hv, c.hv);
+  const inside = cu === lu && cv === lv;
+  return { lu, lv, cu, cv, inside };
+}
+
+function clearance(p: Vec2, colliders: Collider[]) {
+  let m = Infinity;
+  for (const c of colliders) {
+    const q = closestOnCollider(p, c);
+    m = Math.min(m, q.inside ? 0 : Math.hypot(q.lu - q.cu, q.lv - q.cv));
+  }
+  return m;
+}
+
+/** Pushes a walker-sized circle at p out of every collider, sliding along walls. */
+function resolveCollisions(p: Vec2, colliders: Collider[]): Vec2 {
+  const r = WALK.radius;
+  let { x, y } = p;
+  for (let iter = 0; iter < 4; iter++) {
+    let moved = false;
+    for (const c of colliders) {
+      const q = closestOnCollider({ x, y }, c);
+      let pu: number;
+      let pv: number;
+      if (q.inside) {
+        // push out through the nearest side
+        const du = c.hu - Math.abs(q.lu);
+        const dv = c.hv - Math.abs(q.lv);
+        if (du < dv) [pu, pv] = [Math.sign(q.lu || 1) * (du + r), 0];
+        else [pu, pv] = [0, Math.sign(q.lv || 1) * (dv + r)];
+      } else {
+        const ou = q.lu - q.cu;
+        const ov = q.lv - q.cv;
+        const d = Math.hypot(ou, ov);
+        if (d >= r) continue;
+        [pu, pv] = [(ou / d) * (r - d), (ov / d) * (r - d)];
+      }
+      x += pu * c.u.x - pv * c.u.y;
+      y += pu * c.u.y + pv * c.u.x;
+      moved = true;
+    }
+    if (!moved) break;
+  }
+  return { x, y };
 }
 
 function disposeGroup(group: THREE.Group) {

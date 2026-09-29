@@ -374,6 +374,38 @@ main {
   border-color: #c5d6fb;
 }
 
+.walk-hint {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.walk-hint[hidden] {
+  display: none;
+}
+.walk-hint .crosshair {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.9);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35);
+}
+.walk-keys {
+  position: absolute;
+  left: 50%;
+  top: 12px;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  background: rgb(0 0 0 / 0.55);
+  color: #fff;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 /* ---------- plans ---------- */
 
 .plan-name {

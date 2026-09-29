@@ -276,7 +276,7 @@ window.addEventListener('keydown', (e) => {
     store.redo();
     return;
   }
-  if (mod) return;
+  if (mod || view3d.walking) return;
   if (store.ui.view === '2d' && editor.handleKey(e, true)) {
     e.preventDefault();
     return;

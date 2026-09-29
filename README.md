@@ -26,6 +26,7 @@ npm run build    # typecheck + production build into dist/
 - Left-drag orbits, right-drag pans and scrolling zooms.
 - `B` then click the floor to place a box. Click a box to select it and drag it to move it. `R` rotates it 90° (`Shift+R` rotates 15°).
 - `C` toggles cutaway walls so rooms are visible from above.
+- **Walk inside** (`P`) puts you in the house at eye height (1.6 m), or double-click the floor to start walking there. Use `WASD` or the arrow keys to move, the mouse to look and `Shift` to run. `Esc` returns to the orbit camera. Walls, windows and furniture block you, and doors let you through.
 
 `⌘Z` / `⇧⌘Z` undo and redo.
 
