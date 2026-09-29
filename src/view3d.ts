@@ -39,6 +39,9 @@ const WALK = {
   lookSensitivity: 0.0022,
 };
 
+/** Walking needs a keyboard and a mouse or trackpad, so touch-only devices (phones, tablets) don't get it. */
+const canWalk = () => matchMedia('(any-pointer: fine)').matches;
+
 /** Doors (terrace doors too) you can walk through; windows are solid, even floor-to-ceiling ones. */
 const isPassable = (o: Opening) => isDoor(o.kind) && o.sill < 0.3 && o.sill + o.height > 1.8;
 
@@ -155,7 +158,7 @@ export class View3D {
     const bar = document.createElement('div');
     bar.className = 'overlay-3d';
     bar.innerHTML = `
-      <button data-act="walk" title="Walk through the house at eye height (P), or double-click the floor to start there">Walk inside</button>
+      <button data-act="walk" ${canWalk() ? '' : 'hidden'} title="Walk through the house at eye height (P), or double-click the floor to start there">Walk inside</button>
       <button data-act="cutaway" title="Cut walls down to see inside (C)">Cutaway walls</button>
       <button data-act="top" title="Look straight down">Top view</button>
       <button data-act="reset" title="Frame the whole house">Reset camera</button>`;
@@ -449,7 +452,7 @@ export class View3D {
 
   /** Starts first-person mode at a plan point (or a roomy spot in the largest room), facing along yaw. */
   enterWalk(at?: Vec2, yaw?: number) {
-    if (this.walk || !this.active) return;
+    if (this.walk || !this.active || !canWalk()) return;
     const el = this.renderer.domElement;
     const saved = { position: this.camera.position.clone(), target: this.controls.target.clone(), cutaway: this.cutaway };
     if (this.cutaway) this.toggleCutaway();
