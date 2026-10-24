@@ -1,5 +1,6 @@
 import './style.css';
 import { Editor2D } from './editor2d';
+import { READ_ONLY } from './env';
 import { examplePlan } from './example';
 import { emptyPlan, FURNITURE, FURNITURE_KINDS, normalizePlan, type FurnitureKind, type Plan } from './model';
 import { deleteSelection } from './ops';
@@ -29,6 +30,9 @@ const statusRight = $('#status-right');
 editor.onStatus = (t) => (statusLeft.textContent = t);
 
 // ---------- toolbar ----------
+
+// The built site is view only: editing controls are hidden and plans can't be changed.
+document.body.classList.toggle('read-only', READ_ONLY);
 
 const toolButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-tool]')];
 const viewButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-view]')];
@@ -80,6 +84,12 @@ let mode: PlansMode = 'none';
 let publishedFrom: string | null = null;
 
 function syncPlanLabel() {
+  if (READ_ONLY) {
+    planLabel.className = 'plan-name';
+    planLabel.textContent = publishedFrom ? `${publishedFrom} · view only` : 'View only';
+    planLabel.title = 'Plans can only be changed locally, with npm run dev';
+    return;
+  }
   const name = store.planName;
   if (mode !== 'project') {
     planLabel.className = 'plan-name';
@@ -103,6 +113,7 @@ store.subscribe(syncPlanLabel);
 
 /** True if it's fine to replace the current plan. Named project plans are already on disk. */
 function okToDiscard(what: string) {
+  if (READ_ONLY) return true;
   if ((mode === 'project' && store.planName) || (!store.plan.walls.length && !store.plan.furniture.length)) return true;
   const where = mode === 'project' ? "hasn't been saved" : 'is only kept in this browser';
   return confirm(`${what}? The current plan ${where} and will be replaced.`);
@@ -149,19 +160,30 @@ $('#example').addEventListener('click', () => {
 });
 saveAsButton.addEventListener('click', saveAs);
 
+const VIEWING_KEY = 'house-planner:viewing';
+
+/** Opens a published plan (or, view only, a project plan) as an unnamed copy that is never saved back. */
 async function openPublished(name: string) {
-  const plan = await loadPublishedPlan(name).catch(() => null);
+  const plan = await (mode === 'project' ? loadPlan(name) : loadPublishedPlan(name)).catch(() => null);
   if (!plan) return alert(`Could not open "${name}".`);
   publishedFrom = name;
   openPlan(plan, null);
+  if (READ_ONLY) {
+    try {
+      localStorage.setItem(VIEWING_KEY, name);
+    } catch {
+      /* storage unavailable */
+    }
+  }
 }
 
 const openDialog = $<HTMLDialogElement>('#open-dialog');
 const planList = $('#plan-list');
 $('#open').addEventListener('click', async () => {
   planList.innerHTML = '';
-  $('#open-sub').innerHTML =
-    mode === 'project'
+  $('#open-sub').innerHTML = READ_ONLY
+    ? 'Published plans. This site is view only; plans are edited locally with <code>npm run dev</code>.'
+    : mode === 'project'
       ? "Plans saved in the project's <code>plans/</code> folder"
       : mode === 'published'
         ? 'Plans published with this site. Opening one gives you an editable copy in this browser.'
@@ -178,10 +200,10 @@ $('#open').addEventListener('click', async () => {
     b.innerHTML = '<b></b><span></span>';
     b.querySelector('b')!.textContent = p.name;
     b.querySelector('span')!.textContent = new Date(p.updated).toLocaleString();
-    if (p.name === (mode === 'project' ? store.planName : publishedFrom)) b.classList.add('active');
+    if (p.name === (mode === 'project' && !READ_ONLY ? store.planName : publishedFrom)) b.classList.add('active');
     b.addEventListener('click', async () => {
       if (!okToDiscard(`Open "${p.name}"`)) return;
-      if (mode === 'published') {
+      if (mode === 'published' || READ_ONLY) {
         openDialog.close();
         return openPublished(p.name);
       }
@@ -216,7 +238,18 @@ fileInput.addEventListener('change', async () => {
 
 detectPlansMode().then(async (m) => {
   mode = m;
-  if (mode === 'project') {
+  if (READ_ONLY) {
+    // show the plan viewed last, or the most recently changed one
+    const plans = mode === 'project' ? await listPlans().catch(() => []) : mode === 'published' ? await listPublishedPlans().catch(() => []) : [];
+    let last: string | null = null;
+    try {
+      last = localStorage.getItem(VIEWING_KEY);
+    } catch {
+      /* storage unavailable */
+    }
+    const pick = plans.find((p) => p.name === last) ?? plans[0];
+    if (pick) await openPublished(pick.name);
+  } else if (mode === 'project') {
     // The plan file is the source of truth (it may have changed, e.g. after a git pull);
     // fall back to the browser copy if it's missing.
     const name = store.planName;
@@ -268,6 +301,17 @@ function isTyping(e: KeyboardEvent) {
 window.addEventListener('keydown', (e) => {
   if (isTyping(e)) return;
   const mod = e.metaKey || e.ctrlKey;
+  if (READ_ONLY) {
+    // viewing keys only
+    if (mod || view3d.walking) return;
+    const key = e.key.toLowerCase();
+    if (key === 'f') {
+      if (store.ui.view === '2d') editor.zoomToFit();
+      else view3d.frame(false);
+    }
+    if (key === 'c' && store.ui.view === '3d') view3d.toggleCutaway();
+    return;
+  }
   if (mod && e.key.toLowerCase() === 'z') {
     e.preventDefault();
     if (e.shiftKey) store.redo();

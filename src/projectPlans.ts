@@ -1,3 +1,4 @@
+import { READ_ONLY } from './env';
 import { normalizePlan, type Plan } from './model';
 import type { Store } from './store';
 
@@ -102,6 +103,7 @@ export class ProjectAutosave {
   }
 
   private schedule() {
+    if (READ_ONLY) return;
     if (!this.store.planName) return this.setState('unsaved');
     if (JSON.stringify(this.store.plan) === this.lastSaved) return;
     window.clearTimeout(this.timer);

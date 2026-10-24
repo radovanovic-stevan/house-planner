@@ -91,6 +91,11 @@ kbd {
 
 /* ---------- toolbar ---------- */
 
+/* view-only site: no editing controls */
+body.read-only [data-edit] {
+  display: none !important;
+}
+
 .toolbar {
   display: flex;
   align-items: center;

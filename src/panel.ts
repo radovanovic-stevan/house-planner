@@ -1,3 +1,4 @@
+import { READ_ONLY } from './env';
 import { fmt, wallLength } from './geometry';
 import {
   AREA_LABELS,
@@ -368,8 +369,16 @@ export class Panel {
 
     const help = document.createElement('div');
     help.className = 'help';
-    help.innerHTML =
-      this.store.ui.view === '2d'
+    help.innerHTML = READ_ONLY
+      ? `
+      <h3>Viewing</h3>
+      <ul>
+        <li>This is a view-only copy. Plans are edited locally with <code>npm run dev</code>.</li>
+        <li><b>Open…</b> switches between the published plans.</li>
+        <li>2D: drag to pan, scroll / pinch to zoom, <kbd>F</kbd> fits the plan.</li>
+        <li>3D: left-drag to orbit, right-drag to pan, scroll to zoom. <kbd>C</kbd> toggles cutaway walls.</li>
+      </ul>`
+      : this.store.ui.view === '2d'
         ? `
       <h3>Drawing</h3>
       <ul>

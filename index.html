@@ -28,7 +28,7 @@
         <button data-view="3d">3D view</button>
       </div>
 
-      <div class="group tools" aria-label="Tools">
+      <div class="group tools" aria-label="Tools" data-edit>
         <button data-tool="select" title="Select / move (V)">
           <svg viewBox="0 0 20 20"><path d="M5 3l10 6-4.5 1.2L13 16l-2 1-2.5-5.8L5 14z" /></svg><span>Select</span>
         </button>
@@ -55,14 +55,14 @@
         </button>
       </div>
 
-      <div class="group">
+      <div class="group" data-edit>
         <label class="snap" title="What the furniture tool places">
           Item
           <select id="furniture-kind"></select>
         </label>
       </div>
 
-      <div class="group">
+      <div class="group" data-edit>
         <label class="snap" title="Grid snapping">
           Snap
           <select id="snap">
@@ -78,10 +78,10 @@
       </div>
 
       <div class="group">
-        <button id="undo" title="Undo (⌘Z)" class="icon">
+        <button id="undo" title="Undo (⌘Z)" class="icon" data-edit>
           <svg viewBox="0 0 20 20" class="line"><path d="M7 5L3 9l4 4M3 9h9a5 5 0 0 1 0 10h-2" /></svg>
         </button>
-        <button id="redo" title="Redo (⇧⌘Z)" class="icon">
+        <button id="redo" title="Redo (⇧⌘Z)" class="icon" data-edit>
           <svg viewBox="0 0 20 20" class="line"><path d="M13 5l4 4-4 4M17 9H8a5 5 0 0 0 0 10h2" /></svg>
         </button>
         <button id="fit" title="Zoom to fit (F)" class="icon">
@@ -93,10 +93,10 @@
 
       <div class="group file">
         <span id="plan-name" class="plan-name"></span>
-        <button id="new">New</button>
+        <button id="new" data-edit>New</button>
         <button id="example">Example</button>
         <button id="open">Open…</button>
-        <button id="save-as" title="Save to the project's plans/ folder (⌘S)">Save as…</button>
+        <button id="save-as" title="Save to the project's plans/ folder (⌘S)" data-edit>Save as…</button>
         <input type="file" id="file" accept=".json,application/json" hidden />
       </div>
     </header>

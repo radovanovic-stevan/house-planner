@@ -37,17 +37,20 @@ Plans are saved as JSON files in the project's `plans/` folder, so they can be c
 - **Save as…** (`⌘S` on an unnamed plan) names the plan and writes `plans/<name>.json`. After that, every change autosaves to that file. The toolbar shows the plan's name and whether it's saved.
 - **Open…** lists the plans in `plans/`. It can also import or download a `.json` file.
 - On startup the app reopens the last plan from its file, so changes from `git pull` show up.
-- Saving to the project goes through the dev server (`npm run dev` or `npm run preview`).
+- Saving to the project goes through the dev server (`npm run dev`).
 
 ## GitHub Pages
 
 Every push to `main` deploys to https://radovanovic-stevan.github.io/house-planner/ (see `.github/workflows/deploy.yml`).
 
-The hosted site can't write to the repo, so plans work differently there:
+The hosted site is **view only**: the editing tools, undo/redo, New and Save as are hidden, and plans can't be changed there. Plans are edited locally with `npm run dev`.
 
-- Plans committed in `plans/` are published with the site. **Open…** lists them, and opening one gives an editable copy that is kept in that browser.
-- On a first visit, the most recently committed plan opens automatically.
-- **Download** saves the current plan as a `.json` file.
+- Plans committed in `plans/` are published with the site. **Open…** switches between them.
+- It reopens the plan the visitor looked at last, or the most recently committed plan on a first visit.
+- 2D: drag to pan and scroll to zoom. 3D: orbit, cutaway and walk inside all work.
+- **Example** shows the demo house, and the Open dialog can still view an imported `.json` file or download the current plan.
+
+Any production build is view only (`src/env.ts`), including `npm run preview`.
 
 To publish a plan, save it locally with `npm run dev`, then commit and push the file in `plans/`.
 

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { dist, pointInPolygon, rectCorners, snapToGrid, wallDir, wallLength } from './geometry';
+import { READ_ONLY } from './env';
 import { buildFurniture, disposeObject, highlightFurniture } from './furniture3d';
 import { FURNITURE, isDoor, isOutdoor, newFurniture, type Furniture, type Opening, type Selection, type Vec2, type Wall } from './model';
 import { wallEndExtensions } from './ops';
@@ -646,7 +647,7 @@ export class View3D {
       if (document.pointerLockElement !== this.renderer.domElement) this.renderer.domElement.requestPointerLock?.()?.catch?.(() => {});
       return;
     }
-    if (e.button !== 0) return;
+    if (e.button !== 0 || READ_ONLY) return;
     this.downAt = { x: e.clientX, y: e.clientY };
     const store = this.store;
 
@@ -696,7 +697,7 @@ export class View3D {
       this.needsRender = true;
       return;
     }
-    if (e.buttons === 0) el.style.cursor = this.pick(e)?.kind === 'furniture' ? 'move' : 'default';
+    if (e.buttons === 0 && !READ_ONLY) el.style.cursor = this.pick(e)?.kind === 'furniture' ? 'move' : 'default';
   }
 
   private onPointerUp(e: PointerEvent) {

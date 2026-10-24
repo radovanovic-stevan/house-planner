@@ -1,3 +1,4 @@
+import { READ_ONLY } from './env';
 import { emptyPlan, normalizePlan, type FurnitureKind, type Plan, type Selection } from './model';
 
 const STORAGE_KEY = 'house-planner:plan';
@@ -28,14 +29,16 @@ export class Store {
   /** Name of the plan file in the project's plans/ folder, or null for an unsaved plan. */
   planName: string | null = null;
   selection: Selection = null;
-  ui: UiState = { tool: 'wall', view: '2d', snap: 0.1, furnitureKind: 'sofa' };
+  ui: UiState = { tool: READ_ONLY ? 'select' : 'wall', view: '2d', snap: 0.1, furnitureKind: 'sofa' };
   private undoStack: string[] = [];
   private redoStack: string[] = [];
   private listeners = new Set<Listener>();
   private saveTimer: number | undefined;
 
   constructor() {
-    this.plan = this.load() ?? emptyPlan();
+    // a view-only site opens published plans itself and keeps nothing in the browser
+    this.plan = (READ_ONLY ? null : this.load()) ?? emptyPlan();
+    if (READ_ONLY) return;
     try {
       this.planName = localStorage.getItem(NAME_KEY);
     } catch {
@@ -45,6 +48,7 @@ export class Store {
 
   setPlanName(name: string | null) {
     this.planName = name;
+    if (READ_ONLY) return this.emit();
     try {
       if (name) localStorage.setItem(NAME_KEY, name);
       else localStorage.removeItem(NAME_KEY);
@@ -139,6 +143,7 @@ export class Store {
   }
 
   private scheduleSave() {
+    if (READ_ONLY) return;
     window.clearTimeout(this.saveTimer);
     this.saveTimer = window.setTimeout(() => {
       try {

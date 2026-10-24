@@ -14,6 +14,7 @@ import {
   wallDir,
   wallLength,
 } from './geometry';
+import { READ_ONLY } from './env';
 import { drawFurnitureSymbol, isRound } from './furniture2d';
 import { AREA_LABELS, DEFAULTS, FURNITURE, isDoor, isOutdoor, newFurniture, newId, OPENING_KINDS, type Area, type Furniture, type Opening, type OpeningKind, type Vec2, type Wall } from './model';
 import {
@@ -287,7 +288,8 @@ export class Editor2D {
     this.canvas.setPointerCapture(e.pointerId);
     this.canvas.focus();
 
-    if (e.button === 1 || (e.button === 0 && this.spaceDown)) {
+    // view only: any drag pans
+    if (e.button === 1 || (e.button === 0 && (this.spaceDown || READ_ONLY))) {
       this.drag = { kind: 'pan', start: s, origin: { ...this.origin } };
       return;
     }
@@ -467,7 +469,7 @@ export class Editor2D {
         this.store.emit();
       }
     } else {
-      this.hover = this.store.ui.tool === 'select' ? this.hitTest(p) : null;
+      this.hover = this.store.ui.tool === 'select' && !READ_ONLY ? this.hitTest(p) : null;
     }
     this.updateCursorStyle();
     this.updateStatus();
