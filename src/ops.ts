@@ -172,21 +172,26 @@ export function setWallLength(plan: Plan, w: Wall, length: number) {
 const pointKey = (p: Vec2) => `${Math.round(p.x * 1000)},${Math.round(p.y * 1000)}`;
 
 /**
- * How far each wall end should be extended so corners close up: joined ends are
- * extended by half the wall thickness, free ends are not.
+ * How far each wall end should be extended so corners close up: a joined end reaches the far
+ * face of the thickest wall it meets at an angle (half that wall's thickness). Free ends and
+ * ends that only continue in a straight line are not extended.
  */
 export function wallEndExtensions(plan: Plan): Map<string, { a: number; b: number }> {
-  const degree = new Map<string, number>();
+  const at = new Map<string, Wall[]>();
   for (const w of plan.walls) {
-    for (const p of [w.a, w.b]) degree.set(pointKey(p), (degree.get(pointKey(p)) ?? 0) + 1);
+    for (const p of [w.a, w.b]) at.set(pointKey(p), [...(at.get(pointKey(p)) ?? []), w]);
   }
+  const ext = (w: Wall, p: Vec2) => {
+    const d = sub(w.b, w.a);
+    let e = 0;
+    for (const o of at.get(pointKey(p)) ?? []) {
+      const od = sub(o.b, o.a);
+      if (o !== w && Math.abs(cross(d, od)) / (Math.hypot(d.x, d.y) * Math.hypot(od.x, od.y)) > 1e-3) e = Math.max(e, o.thickness / 2);
+    }
+    return e;
+  };
   const result = new Map<string, { a: number; b: number }>();
-  for (const w of plan.walls) {
-    result.set(w.id, {
-      a: (degree.get(pointKey(w.a)) ?? 0) > 1 ? w.thickness / 2 : 0,
-      b: (degree.get(pointKey(w.b)) ?? 0) > 1 ? w.thickness / 2 : 0,
-    });
-  }
+  for (const w of plan.walls) result.set(w.id, { a: ext(w, w.a), b: ext(w, w.b) });
   return result;
 }
 
