@@ -2,7 +2,7 @@
   "version": 1,
   "walls": [
     {
-      "id": "w_mvm67yo71ad65",
+      "id": "w_mvm6c80q1s324",
       "a": {
         "x": -0.125,
         "y": -0.125
@@ -15,7 +15,7 @@
       "height": 2.7
     },
     {
-      "id": "w_mvm67yo72qanl",
+      "id": "w_mvm6c80q2tfhx",
       "a": {
         "x": 9.035,
         "y": -0.125
@@ -28,7 +28,7 @@
       "height": 2.7
     },
     {
-      "id": "w_mvm67yo73ezeu",
+      "id": "w_mvm6c80r3wb8p",
       "a": {
         "x": 9.035,
         "y": 8.345
@@ -41,7 +41,7 @@
       "height": 2.7
     },
     {
-      "id": "w_mvm67yo745k0o",
+      "id": "w_mvm6c80r4jjxt",
       "a": {
         "x": -0.125,
         "y": 8.345
@@ -54,7 +54,7 @@
       "height": 2.7
     },
     {
-      "id": "w_mvm67yo75is1z",
+      "id": "w_mvm6c80r53j4x",
       "a": {
         "x": 4.03,
         "y": -0.125
@@ -67,7 +67,7 @@
       "height": 2.7
     },
     {
-      "id": "w_mvm67yo76c8hd",
+      "id": "w_mvm6c80r65gqa",
       "a": {
         "x": 4.030000000000001,
         "y": 8.345
@@ -80,7 +80,7 @@
       "height": 2.7
     },
     {
-      "id": "w_mvm67yo77tjhd",
+      "id": "w_mvm6c80r7lgwo",
       "a": {
         "x": 4.03,
         "y": -0.125
@@ -93,7 +93,7 @@
       "height": 2.7
     },
     {
-      "id": "w_mvm67yo78l75s",
+      "id": "w_mvm6c80r87g6r",
       "a": {
         "x": 5.51,
         "y": -0.125
@@ -106,7 +106,7 @@
       "height": 2.7
     },
     {
-      "id": "w_mvm67yo891ouz",
+      "id": "w_mvm6c80r9miyg",
       "a": {
         "x": 5.51,
         "y": 8.345
@@ -119,7 +119,7 @@
       "height": 2.7
     },
     {
-      "id": "w_mvm67yo8a3c7l",
+      "id": "w_mvm6c80ra2mge",
       "a": {
         "x": 5.51,
         "y": -0.125
@@ -132,7 +132,7 @@
       "height": 2.7
     },
     {
-      "id": "w_mvm67yo8blwzc",
+      "id": "w_mvm6c80rbscqg",
       "a": {
         "x": 4.03,
         "y": 2.94
@@ -145,7 +145,7 @@
       "height": 2.7
     },
     {
-      "id": "w_mvm67yo8cgnog",
+      "id": "w_mvm6c80rcm07t",
       "a": {
         "x": 5.51,
         "y": 2.94
@@ -158,7 +158,7 @@
       "height": 2.7
     },
     {
-      "id": "w_mvm67yo8df3j0",
+      "id": "w_mvm6c80rdxk59",
       "a": {
         "x": 4.03,
         "y": 2.94
@@ -171,7 +171,7 @@
       "height": 2.7
     },
     {
-      "id": "w_mvm67yo8ewt70",
+      "id": "w_mvm6c80repxgl",
       "a": {
         "x": 5.51,
         "y": 3.85
@@ -184,7 +184,7 @@
       "height": 2.7
     },
     {
-      "id": "w_mvm67yo8ftrg5",
+      "id": "w_mvm6c80rfkqdj",
       "a": {
         "x": 9.035,
         "y": 3.85
@@ -197,7 +197,7 @@
       "height": 2.7
     },
     {
-      "id": "w_mvm67yo8golwi",
+      "id": "w_mvm6c80rgw8qz",
       "a": {
         "x": 5.51,
         "y": 3.85
@@ -210,7 +210,7 @@
       "height": 2.7
     },
     {
-      "id": "w_mvm67yo8hbur6",
+      "id": "w_mvm6c80rhvlgl",
       "a": {
         "x": 4.03,
         "y": 1.7949999999999997
@@ -223,7 +223,7 @@
       "height": 2.7
     },
     {
-      "id": "w_mvm67yo8iqan8",
+      "id": "w_mvm6c80rihug6",
       "a": {
         "x": 4.03,
         "y": 1.795
@@ -238,8 +238,8 @@
   ],
   "openings": [
     {
-      "id": "o_mvm67yo8jls5s",
-      "wallId": "w_mvm67yo745k0o",
+      "id": "o_mvm6c80rjlvi9",
+      "wallId": "w_mvm6c80r4jjxt",
       "kind": "window",
       "offset": 5.025,
       "width": 1.2,
@@ -249,19 +249,30 @@
       "flipSwing": false
     },
     {
-      "id": "o_mvm67yo8k1f1z",
-      "wallId": "w_mvm67yo76c8hd",
+      "id": "o_mvm6c80skc8hk",
+      "wallId": "w_mvm6c80r65gqa",
       "kind": "terraceDoor",
-      "offset": 1.380000000000001,
-      "width": 2.1,
+      "offset": 1.9800000000000013,
+      "width": 0.9,
+      "height": 2.2,
+      "sill": 0,
+      "flipHinge": true,
+      "flipSwing": false
+    },
+    {
+      "id": "o_mvm6c80slr0l8",
+      "wallId": "w_mvm6c80r65gqa",
+      "kind": "tallWindow",
+      "offset": 0.9300000000000009,
+      "width": 1.2,
       "height": 2.2,
       "sill": 0,
       "flipHinge": false,
       "flipSwing": false
     },
     {
-      "id": "o_mvm67yo8lgu9f",
-      "wallId": "w_mvm67yo891ouz",
+      "id": "o_mvm6c80smoptn",
+      "wallId": "w_mvm6c80r9miyg",
       "kind": "door",
       "offset": 0.585,
       "width": 0.93,
@@ -271,8 +282,8 @@
       "flipSwing": false
     },
     {
-      "id": "o_mvm67yo8mehiq",
-      "wallId": "w_mvm67yo8blwzc",
+      "id": "o_mvm6c80sn20pt",
+      "wallId": "w_mvm6c80rbscqg",
       "kind": "door",
       "offset": 3.4600000000000004,
       "width": 0.9,
@@ -282,8 +293,8 @@
       "flipSwing": false
     },
     {
-      "id": "o_mvm67yo9nt2la",
-      "wallId": "w_mvm67yo8df3j0",
+      "id": "o_mvm6c80soiurf",
+      "wallId": "w_mvm6c80rdxk59",
       "kind": "door",
       "offset": 0.75,
       "width": 0.9,
@@ -293,8 +304,8 @@
       "flipSwing": true
     },
     {
-      "id": "o_mvm67yo9opdqw",
-      "wallId": "w_mvm67yo8cgnog",
+      "id": "o_mvm6c80sp8a0k",
+      "wallId": "w_mvm6c80rcm07t",
       "kind": "door",
       "offset": 0.5899999999999999,
       "width": 0.9,
@@ -304,8 +315,8 @@
       "flipSwing": true
     },
     {
-      "id": "o_mvm67yo9p3m9m",
-      "wallId": "w_mvm67yo8ewt70",
+      "id": "o_mvm6c80sqsear",
+      "wallId": "w_mvm6c80repxgl",
       "kind": "door",
       "offset": 1.2449999999999994,
       "width": 0.93,
@@ -315,8 +326,8 @@
       "flipSwing": true
     },
     {
-      "id": "o_mvm67yo9qp7za",
-      "wallId": "w_mvm67yo78l75s",
+      "id": "o_mvm6c80srbbn0",
+      "wallId": "w_mvm6c80r87g6r",
       "kind": "window",
       "offset": 1.4500000000000002,
       "width": 1.5,
@@ -326,8 +337,8 @@
       "flipSwing": false
     },
     {
-      "id": "o_mvm67yo9r7s90",
-      "wallId": "w_mvm67yo73ezeu",
+      "id": "o_mvm6c80sse4zn",
+      "wallId": "w_mvm6c80r3wb8p",
       "kind": "window",
       "offset": 2.1300000000000003,
       "width": 1.35,
@@ -337,8 +348,8 @@
       "flipSwing": false
     },
     {
-      "id": "o_mvm67yo9s5mk0",
-      "wallId": "w_mvm67yo75is1z",
+      "id": "o_mvm6c80stqq9i",
+      "wallId": "w_mvm6c80r53j4x",
       "kind": "window",
       "offset": 1.0699999999999994,
       "width": 0.5,
@@ -351,7 +362,7 @@
   "furniture": [],
   "areas": [
     {
-      "id": "a_mvm67yo9tgrh7",
+      "id": "a_mvm6c80sulczh",
       "kind": "tiles",
       "x": 0,
       "y": 0,
