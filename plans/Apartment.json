@@ -1,0 +1,362 @@
+{
+  "version": 1,
+  "walls": [
+    {
+      "id": "w_mvm67yo71ad65",
+      "a": {
+        "x": -0.125,
+        "y": -0.125
+      },
+      "b": {
+        "x": 4.03,
+        "y": -0.125
+      },
+      "thickness": 0.25,
+      "height": 2.7
+    },
+    {
+      "id": "w_mvm67yo72qanl",
+      "a": {
+        "x": 9.035,
+        "y": -0.125
+      },
+      "b": {
+        "x": 9.035,
+        "y": 3.85
+      },
+      "thickness": 0.25,
+      "height": 2.7
+    },
+    {
+      "id": "w_mvm67yo73ezeu",
+      "a": {
+        "x": 9.035,
+        "y": 8.345
+      },
+      "b": {
+        "x": 5.51,
+        "y": 8.345
+      },
+      "thickness": 0.25,
+      "height": 2.7
+    },
+    {
+      "id": "w_mvm67yo745k0o",
+      "a": {
+        "x": -0.125,
+        "y": 8.345
+      },
+      "b": {
+        "x": -0.125,
+        "y": -0.125
+      },
+      "thickness": 0.25,
+      "height": 2.7
+    },
+    {
+      "id": "w_mvm67yo75is1z",
+      "a": {
+        "x": 4.03,
+        "y": -0.125
+      },
+      "b": {
+        "x": 5.51,
+        "y": -0.125
+      },
+      "thickness": 0.25,
+      "height": 2.7
+    },
+    {
+      "id": "w_mvm67yo76c8hd",
+      "a": {
+        "x": 4.030000000000001,
+        "y": 8.345
+      },
+      "b": {
+        "x": -0.125,
+        "y": 8.345
+      },
+      "thickness": 0.25,
+      "height": 2.7
+    },
+    {
+      "id": "w_mvm67yo77tjhd",
+      "a": {
+        "x": 4.03,
+        "y": -0.125
+      },
+      "b": {
+        "x": 4.03,
+        "y": 1.7949999999999997
+      },
+      "thickness": 0.1,
+      "height": 2.7
+    },
+    {
+      "id": "w_mvm67yo78l75s",
+      "a": {
+        "x": 5.51,
+        "y": -0.125
+      },
+      "b": {
+        "x": 9.035,
+        "y": -0.125
+      },
+      "thickness": 0.25,
+      "height": 2.7
+    },
+    {
+      "id": "w_mvm67yo891ouz",
+      "a": {
+        "x": 5.51,
+        "y": 8.345
+      },
+      "b": {
+        "x": 4.030000000000001,
+        "y": 8.345
+      },
+      "thickness": 0.25,
+      "height": 2.7
+    },
+    {
+      "id": "w_mvm67yo8a3c7l",
+      "a": {
+        "x": 5.51,
+        "y": -0.125
+      },
+      "b": {
+        "x": 5.51,
+        "y": 2.94
+      },
+      "thickness": 0.1,
+      "height": 2.7
+    },
+    {
+      "id": "w_mvm67yo8blwzc",
+      "a": {
+        "x": 4.03,
+        "y": 2.94
+      },
+      "b": {
+        "x": 4.03,
+        "y": 8.345
+      },
+      "thickness": 0.1,
+      "height": 2.7
+    },
+    {
+      "id": "w_mvm67yo8cgnog",
+      "a": {
+        "x": 5.51,
+        "y": 2.94
+      },
+      "b": {
+        "x": 5.51,
+        "y": 3.85
+      },
+      "thickness": 0.1,
+      "height": 2.7
+    },
+    {
+      "id": "w_mvm67yo8df3j0",
+      "a": {
+        "x": 4.03,
+        "y": 2.94
+      },
+      "b": {
+        "x": 5.51,
+        "y": 2.94
+      },
+      "thickness": 0.1,
+      "height": 2.7
+    },
+    {
+      "id": "w_mvm67yo8ewt70",
+      "a": {
+        "x": 5.51,
+        "y": 3.85
+      },
+      "b": {
+        "x": 5.51,
+        "y": 8.345
+      },
+      "thickness": 0.1,
+      "height": 2.7
+    },
+    {
+      "id": "w_mvm67yo8ftrg5",
+      "a": {
+        "x": 9.035,
+        "y": 3.85
+      },
+      "b": {
+        "x": 9.035,
+        "y": 8.345
+      },
+      "thickness": 0.25,
+      "height": 2.7
+    },
+    {
+      "id": "w_mvm67yo8golwi",
+      "a": {
+        "x": 5.51,
+        "y": 3.85
+      },
+      "b": {
+        "x": 9.035,
+        "y": 3.85
+      },
+      "thickness": 0.04,
+      "height": 2.7
+    },
+    {
+      "id": "w_mvm67yo8hbur6",
+      "a": {
+        "x": 4.03,
+        "y": 1.7949999999999997
+      },
+      "b": {
+        "x": 4.03,
+        "y": 2.94
+      },
+      "thickness": 0.1,
+      "height": 2.7
+    },
+    {
+      "id": "w_mvm67yo8iqan8",
+      "a": {
+        "x": 4.03,
+        "y": 1.795
+      },
+      "b": {
+        "x": 3.7,
+        "y": 1.795
+      },
+      "thickness": 0.55,
+      "height": 2.7
+    }
+  ],
+  "openings": [
+    {
+      "id": "o_mvm67yo8jls5s",
+      "wallId": "w_mvm67yo745k0o",
+      "kind": "window",
+      "offset": 5.025,
+      "width": 1.2,
+      "height": 1.2,
+      "sill": 0.9,
+      "flipHinge": false,
+      "flipSwing": false
+    },
+    {
+      "id": "o_mvm67yo8k1f1z",
+      "wallId": "w_mvm67yo76c8hd",
+      "kind": "terraceDoor",
+      "offset": 1.380000000000001,
+      "width": 2.1,
+      "height": 2.2,
+      "sill": 0,
+      "flipHinge": false,
+      "flipSwing": false
+    },
+    {
+      "id": "o_mvm67yo8lgu9f",
+      "wallId": "w_mvm67yo891ouz",
+      "kind": "door",
+      "offset": 0.585,
+      "width": 0.93,
+      "height": 2.1,
+      "sill": 0,
+      "flipHinge": false,
+      "flipSwing": false
+    },
+    {
+      "id": "o_mvm67yo8mehiq",
+      "wallId": "w_mvm67yo8blwzc",
+      "kind": "door",
+      "offset": 3.4600000000000004,
+      "width": 0.9,
+      "height": 2.1,
+      "sill": 0,
+      "flipHinge": false,
+      "flipSwing": false
+    },
+    {
+      "id": "o_mvm67yo9nt2la",
+      "wallId": "w_mvm67yo8df3j0",
+      "kind": "door",
+      "offset": 0.75,
+      "width": 0.9,
+      "height": 2.1,
+      "sill": 0,
+      "flipHinge": false,
+      "flipSwing": true
+    },
+    {
+      "id": "o_mvm67yo9opdqw",
+      "wallId": "w_mvm67yo8cgnog",
+      "kind": "door",
+      "offset": 0.5899999999999999,
+      "width": 0.9,
+      "height": 2.1,
+      "sill": 0,
+      "flipHinge": false,
+      "flipSwing": true
+    },
+    {
+      "id": "o_mvm67yo9p3m9m",
+      "wallId": "w_mvm67yo8ewt70",
+      "kind": "door",
+      "offset": 1.2449999999999994,
+      "width": 0.93,
+      "height": 2.1,
+      "sill": 0,
+      "flipHinge": false,
+      "flipSwing": true
+    },
+    {
+      "id": "o_mvm67yo9qp7za",
+      "wallId": "w_mvm67yo78l75s",
+      "kind": "window",
+      "offset": 1.4500000000000002,
+      "width": 1.5,
+      "height": 1.2,
+      "sill": 0.9,
+      "flipHinge": false,
+      "flipSwing": false
+    },
+    {
+      "id": "o_mvm67yo9r7s90",
+      "wallId": "w_mvm67yo73ezeu",
+      "kind": "window",
+      "offset": 2.1300000000000003,
+      "width": 1.35,
+      "height": 1.2,
+      "sill": 0.9,
+      "flipHinge": false,
+      "flipSwing": false
+    },
+    {
+      "id": "o_mvm67yo9s5mk0",
+      "wallId": "w_mvm67yo75is1z",
+      "kind": "window",
+      "offset": 1.0699999999999994,
+      "width": 0.5,
+      "height": 0.5,
+      "sill": 1.6,
+      "flipHinge": false,
+      "flipSwing": false
+    }
+  ],
+  "furniture": [],
+  "areas": [
+    {
+      "id": "a_mvm67yo9tgrh7",
+      "kind": "tiles",
+      "x": 0,
+      "y": 0,
+      "width": 3.98,
+      "length": 2.07
+    }
+  ]
+}

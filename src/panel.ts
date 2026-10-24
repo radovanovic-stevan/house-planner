@@ -5,6 +5,7 @@ import {
   FURNITURE,
   FURNITURE_KINDS,
   isDoor,
+  isOutdoor,
   newId,
   OPENING_KINDS,
   OPENING_LABELS,
@@ -254,7 +255,8 @@ export class Panel {
   }
 
   private renderArea(a: Area) {
-    const size = () => `${fmt(a.width * a.length)} m² outdoor, not counted in the floor area`;
+    const size = () =>
+      isOutdoor(a.kind) ? `${fmt(a.width * a.length)} m² outdoor, not counted in the floor area` : `${fmt(a.width * a.length)} m², part of the room it's in`;
     const sub = this.heading(AREA_LABELS[a.kind], size()).querySelector('p')!;
     sub.dataset.live = 'aarea';
     this.getters.set('aarea', size);
@@ -358,7 +360,7 @@ export class Panel {
               .sort((a, b) => b.area - a.area)
               .map((r) => `<li><span>Room</span><b>${fmt(r.area)} m²</b></li>`)
               .join('')}${plan.areas
-              .map((a) => `<li><span>${AREA_LABELS[a.kind]} (outdoor)</span><b>${fmt(a.width * a.length)} m²</b></li>`)
+              .map((a) => `<li><span>${AREA_LABELS[a.kind]}${isOutdoor(a.kind) ? ' (outdoor)' : ''}</span><b>${fmt(a.width * a.length)} m²</b></li>`)
               .join('')}</ol>`
           : ''
       }`;
@@ -373,7 +375,7 @@ export class Panel {
       <ul>
         <li><kbd>W</kbd> Wall: click to start, click to add corners. Walls are always horizontal or vertical. Type a number + <kbd>Enter</kbd> for an exact length. Finish with <kbd>Esc</kbd>, double-click or right-click; clicking the start point closes the room.</li>
         <li><kbd>D</kbd> Door / <kbd>T</kbd> Terrace door / <kbd>N</kbd> Window / <kbd>G</kbd> Floor-to-ceiling window: click on a wall.</li>
-        <li><kbd>A</kbd> Terrace / balcony: drag out the outdoor area. Its edges snap to the walls.</li>
+        <li><kbd>A</kbd> Terrace / balcony: drag out the outdoor area, or a tiled floor inside a room. Its edges snap to the walls.</li>
         <li><kbd>B</kbd> Furniture: pick an item in the toolbar, then click to place it.</li>
         <li><kbd>V</kbd> Select: drag walls, corners, openings and furniture. Dragging a corner moves the wall lines through it. <kbd>Del</kbd> removes.</li>
       </ul>

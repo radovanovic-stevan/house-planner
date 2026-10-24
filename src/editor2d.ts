@@ -15,7 +15,7 @@ import {
   wallLength,
 } from './geometry';
 import { drawFurnitureSymbol, isRound } from './furniture2d';
-import { AREA_LABELS, DEFAULTS, FURNITURE, isDoor, newFurniture, newId, OPENING_KINDS, type Area, type Furniture, type Opening, type OpeningKind, type Vec2, type Wall } from './model';
+import { AREA_LABELS, DEFAULTS, FURNITURE, isDoor, isOutdoor, newFurniture, newId, OPENING_KINDS, type Area, type Furniture, type Opening, type OpeningKind, type Vec2, type Wall } from './model';
 import {
   addWall,
   clampOpening,
@@ -946,7 +946,7 @@ export class Editor2D {
     ctx.restore();
   }
 
-  /** Terraces and balconies: a hatched outdoor floor under everything else. */
+  /** Terraces and balconies (a hatched outdoor floor) and tiled floors, under everything else. */
   private drawAreas() {
     const ctx = this.ctx;
     const sel = this.store.selection;
@@ -963,10 +963,25 @@ export class Editor2D {
       ctx.strokeStyle = COLORS.areaHatch;
       ctx.lineWidth = 1;
       ctx.beginPath();
-      const step = 10;
-      for (let k = -h; k < w; k += step) {
-        ctx.moveTo(tl.x + k, tl.y + h);
-        ctx.lineTo(tl.x + k + h, tl.y);
+      if (isOutdoor(a.kind)) {
+        const step = 10;
+        for (let k = -h; k < w; k += step) {
+          ctx.moveTo(tl.x + k, tl.y + h);
+          ctx.lineTo(tl.x + k + h, tl.y);
+        }
+      } else {
+        // 40 cm tiles, when they're big enough to see
+        const step = 0.4 * this.zoom;
+        if (step >= 6) {
+          for (let k = step; k < w; k += step) {
+            ctx.moveTo(tl.x + k, tl.y);
+            ctx.lineTo(tl.x + k, tl.y + h);
+          }
+          for (let k = step; k < h; k += step) {
+            ctx.moveTo(tl.x, tl.y + k);
+            ctx.lineTo(tl.x + w, tl.y + k);
+          }
+        }
       }
       ctx.stroke();
       ctx.restore();
@@ -974,7 +989,7 @@ export class Editor2D {
       const hovered = this.hover?.kind === 'area' && this.hover.area.id === a.id;
       ctx.strokeStyle = selected ? COLORS.accent : hovered ? '#555' : COLORS.areaText;
       ctx.lineWidth = selected ? 2 : 1.5;
-      ctx.setLineDash([6, 4]);
+      if (isOutdoor(a.kind)) ctx.setLineDash([6, 4]);
       ctx.strokeRect(tl.x, tl.y, w, h);
       ctx.setLineDash([]);
     }

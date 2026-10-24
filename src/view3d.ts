@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { dist, pointInPolygon, rectCorners, snapToGrid, wallDir, wallLength } from './geometry';
 import { buildFurniture, disposeObject, highlightFurniture } from './furniture3d';
-import { FURNITURE, isDoor, newFurniture, type Furniture, type Opening, type Selection, type Vec2, type Wall } from './model';
+import { FURNITURE, isDoor, isOutdoor, newFurniture, type Furniture, type Opening, type Selection, type Vec2, type Wall } from './model';
 import { wallEndExtensions } from './ops';
 import { findRooms } from './rooms';
 import type { Store } from './store';
@@ -17,6 +17,7 @@ const COLORS = {
   door: 0xa47b56,
   frame: 0x5c6168,
   tile: 0xd9c9ae,
+  indoorTile: 0xe8e6e1,
   accent: 0x2f6fed,
   edge: 0x3a3a3a,
 };
@@ -316,13 +317,15 @@ export class View3D {
       this.structure.add(mesh);
     }
 
-    // terraces and balconies: a tiled slab just above the ground
+    // terraces, balconies and tiled floors: a tiled slab just above the ground
     for (const a of plan.areas) {
       const selected = sel?.kind === 'area' && sel.id === a.id;
       const tex = tileTexture();
       tex.repeat.set(a.width / 0.4, a.length / 0.4);
-      const mat = new THREE.MeshStandardMaterial({ color: selected ? COLORS.accent : COLORS.tile, map: tex, roughness: 0.9 });
-      const slab = 0.04;
+      const outdoor = isOutdoor(a.kind);
+      const mat = new THREE.MeshStandardMaterial({ color: selected ? COLORS.accent : outdoor ? COLORS.tile : COLORS.indoorTile, map: tex, roughness: outdoor ? 0.9 : 0.5 });
+      // indoor tiles sit just above the room's floor
+      const slab = outdoor ? 0.04 : 0.016;
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(a.width, slab, a.length), mat);
       mesh.position.set(a.x + a.width / 2, slab / 2 - 0.01, a.y + a.length / 2);
       mesh.receiveShadow = true;

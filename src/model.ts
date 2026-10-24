@@ -161,11 +161,14 @@ export interface Furniture {
   color: string;
 }
 
-export type AreaKind = 'terrace' | 'balcony';
+/** `tiles` marks a tiled floor inside a room, such as a kitchen; the others are outdoor. */
+export type AreaKind = 'terrace' | 'balcony' | 'tiles';
 
-export const AREA_LABELS: Record<AreaKind, string> = { terrace: 'Terrace', balcony: 'Balcony' };
+export const AREA_LABELS: Record<AreaKind, string> = { terrace: 'Terrace', balcony: 'Balcony', tiles: 'Tiled floor' };
 
-/** An outdoor floor area such as a terrace or balcony: an axis-aligned rectangle on the plan. */
+export const isOutdoor = (kind: AreaKind) => kind !== 'tiles';
+
+/** A floor area such as a terrace, a balcony or a tiled kitchen floor: an axis-aligned rectangle on the plan. */
 export interface Area {
   id: string;
   kind: AreaKind;
@@ -261,7 +264,7 @@ export function normalizePlan(raw: unknown): Plan {
   });
   const areas: Area[] = (Array.isArray(src.areas) ? src.areas : []).map((a) => ({
     id: String(a.id ?? newId('a')),
-    kind: a.kind === 'balcony' ? 'balcony' : 'terrace',
+    kind: a.kind === 'balcony' || a.kind === 'tiles' ? a.kind : 'terrace',
     x: num(a.x, 0),
     y: num(a.y, 0),
     width: Math.max(0.1, num(a.width, 1)),
