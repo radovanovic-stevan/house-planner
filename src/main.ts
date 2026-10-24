@@ -1,7 +1,7 @@
 import './style.css';
 import { Editor2D } from './editor2d';
 import { examplePlan } from './example';
-import { emptyPlan, normalizePlan, type Plan } from './model';
+import { emptyPlan, FURNITURE, FURNITURE_KINDS, normalizePlan, type FurnitureKind, type Plan } from './model';
 import { deleteSelection } from './ops';
 import { Panel } from './panel';
 import {
@@ -49,6 +49,15 @@ function setView(view: ViewMode) {
   if (view === '3d' && ['wall', 'door', 'terraceDoor', 'window', 'tallWindow', 'area'].includes(store.ui.tool)) patch.tool = 'select';
   store.setUi(patch);
 }
+
+// picking an item switches to the furniture tool
+const kindSelect = $<HTMLSelectElement>('#furniture-kind');
+for (const k of FURNITURE_KINDS) kindSelect.add(new Option(FURNITURE[k].label, k));
+kindSelect.value = store.ui.furnitureKind;
+kindSelect.addEventListener('change', () => {
+  store.setUi({ furnitureKind: kindSelect.value as FurnitureKind, tool: 'furniture' });
+  kindSelect.blur();
+});
 
 const snapSelect = $<HTMLSelectElement>('#snap');
 snapSelect.value = String(store.ui.snap);
@@ -242,7 +251,7 @@ function syncToolbar() {
   $('#plan').hidden = view !== '2d';
   $('#view3d').hidden = view !== '3d';
   const { walls, furniture } = store.plan;
-  statusRight.textContent = `${walls.length} walls · ${furniture.length} boxes`;
+  statusRight.textContent = `${walls.length} walls · ${furniture.length} furniture`;
 }
 store.subscribe(syncToolbar);
 syncToolbar();

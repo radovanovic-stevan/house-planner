@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { dist, pointInPolygon, rectCorners, snapToGrid, wallDir, wallLength } from './geometry';
-import { DEFAULTS, isDoor, newId, type Furniture, type Opening, type Selection, type Vec2, type Wall } from './model';
+import { buildFurniture, disposeObject, highlightFurniture } from './furniture3d';
+import { FURNITURE, isDoor, newFurniture, type Furniture, type Opening, type Selection, type Vec2, type Wall } from './model';
 import { wallEndExtensions } from './ops';
 import { findRooms } from './rooms';
 import type { Store } from './store';
@@ -63,9 +64,7 @@ export class View3D {
   private raycaster = new THREE.Raycaster();
   private floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private structureKey = '';
-  private furnitureMeshes = new Map<string, THREE.Mesh>();
-  private unitBox = new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0);
-  private unitEdges = new THREE.EdgesGeometry(this.unitBox);
+  private furnitureModels = new Map<string, { model: THREE.Group; key: string }>();
   private drag: Drag | null = null;
   private downAt: { x: number; y: number } | null = null;
   private placePreview: THREE.Mesh;
@@ -115,10 +114,9 @@ export class View3D {
     this.scene.add(this.structure, this.furnitureGroup);
 
     this.placePreview = new THREE.Mesh(
-      this.unitBox,
+      new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0),
       new THREE.MeshBasicMaterial({ color: COLORS.accent, transparent: true, opacity: 0.25, depthWrite: false }),
     );
-    this.placePreview.scale.set(DEFAULTS.furniture.width, DEFAULTS.furniture.height, DEFAULTS.furniture.length);
     this.placePreview.visible = false;
     this.scene.add(this.placePreview);
 
@@ -228,6 +226,8 @@ export class View3D {
       this.frame(false);
     }
     this.placePreview.visible = this.placePreview.visible && this.store.ui.tool === 'furniture';
+    const spec = FURNITURE[this.store.ui.furnitureKind];
+    this.placePreview.scale.set(spec.width, Math.max(spec.height, 0.02), spec.length);
     this.needsRender = true;
     if (!this.running) {
       this.running = true;
@@ -575,39 +575,33 @@ export class View3D {
     const seen = new Set<string>();
     for (const f of plan.furniture) {
       seen.add(f.id);
-      let mesh = this.furnitureMeshes.get(f.id);
-      if (!mesh) {
-        mesh = new THREE.Mesh(this.unitBox, new THREE.MeshStandardMaterial({ roughness: 0.75 }));
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-        mesh.add(new THREE.LineSegments(this.unitEdges, new THREE.LineBasicMaterial({ color: COLORS.edge, transparent: true, opacity: 0.45 })));
-        mesh.userData.pick = { kind: 'furniture', id: f.id } satisfies Pick;
-        this.furnitureMeshes.set(f.id, mesh);
-        this.furnitureGroup.add(mesh);
+      // the model is rebuilt only when its shape changes; moving and rotating just repositions it
+      const key = JSON.stringify([f.kind, f.width, f.length, f.height, f.color]);
+      let entry = this.furnitureModels.get(f.id);
+      if (entry?.key !== key) {
+        if (entry) {
+          disposeObject(entry.model);
+          this.furnitureGroup.remove(entry.model);
+        }
+        entry = { model: buildFurniture(f), key };
+        entry.model.userData.pick = { kind: 'furniture', id: f.id } satisfies Pick;
+        this.furnitureModels.set(f.id, entry);
+        this.furnitureGroup.add(entry.model);
       }
-      this.applyFurniture(mesh, f, sel);
+      this.applyFurniture(entry.model, f, sel);
     }
-    for (const [id, mesh] of this.furnitureMeshes) {
+    for (const [id, entry] of this.furnitureModels) {
       if (seen.has(id)) continue;
-      (mesh.material as THREE.Material).dispose();
-      ((mesh.children[0] as THREE.LineSegments).material as THREE.Material).dispose();
-      this.furnitureGroup.remove(mesh);
-      this.furnitureMeshes.delete(id);
+      disposeObject(entry.model);
+      this.furnitureGroup.remove(entry.model);
+      this.furnitureModels.delete(id);
     }
   }
 
-  private applyFurniture(mesh: THREE.Mesh, f: Furniture, sel: Selection) {
-    mesh.position.set(f.x, f.elevation, f.y);
-    mesh.rotation.y = planAngleToY(f.rotation);
-    mesh.scale.set(Math.max(f.width, 0.01), Math.max(f.height, 0.01), Math.max(f.length, 0.01));
-    const mat = mesh.material as THREE.MeshStandardMaterial;
-    const selected = sel?.kind === 'furniture' && sel.id === f.id;
-    mat.color.set(f.color);
-    mat.emissive.set(selected ? COLORS.accent : 0x000000);
-    mat.emissiveIntensity = selected ? 0.35 : 0;
-    const edges = (mesh.children[0] as THREE.LineSegments).material as THREE.LineBasicMaterial;
-    edges.color.set(selected ? COLORS.accent : COLORS.edge);
-    edges.opacity = selected ? 1 : 0.45;
+  private applyFurniture(model: THREE.Group, f: Furniture, sel: Selection) {
+    model.position.set(f.x, f.elevation, f.y);
+    model.rotation.y = planAngleToY(f.rotation);
+    highlightFurniture(model, sel?.kind === 'furniture' && sel.id === f.id ? COLORS.accent : null);
   }
 
   // ---------- picking & dragging ----------
@@ -619,10 +613,13 @@ export class View3D {
 
   private pick(e: PointerEvent): Pick | null {
     this.raycaster.setFromCamera(this.ndc(e), this.camera);
-    const hits = this.raycaster.intersectObjects([...this.furnitureGroup.children, ...this.structure.children], false);
+    const hits = this.raycaster.intersectObjects([...this.furnitureGroup.children, ...this.structure.children], true);
     for (const h of hits) {
-      const p = h.object.userData.pick as Pick | undefined;
-      if (p) return p;
+      // furniture models are groups of parts; the pick tag sits on the group
+      for (let o: THREE.Object3D | null = h.object; o; o = o.parent) {
+        const p = o.userData.pick as Pick | undefined;
+        if (p) return p;
+      }
     }
     return null;
   }
@@ -719,16 +716,7 @@ export class View3D {
       if (!p) return;
       const q = snapToGrid({ x: p.x, y: p.z }, store.ui.snap);
       store.checkpoint();
-      const f: Furniture = {
-        id: newId('f'),
-        name: `Box ${store.plan.furniture.length + 1}`,
-        x: q.x,
-        y: q.y,
-        ...DEFAULTS.furniture,
-        elevation: 0,
-        rotation: 0,
-        color: '#c8a27a',
-      };
+      const f = newFurniture(store.ui.furnitureKind, q, store.plan.furniture);
       store.plan.furniture.push(f);
       store.selection = { kind: 'furniture', id: f.id };
       store.ui.tool = 'select';

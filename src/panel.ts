@@ -1,5 +1,21 @@
 import { fmt, wallLength } from './geometry';
-import { AREA_LABELS, DEFAULTS, isDoor, newId, OPENING_KINDS, OPENING_LABELS, type Area, type AreaKind, type Furniture, type Opening, type OpeningKind, type Wall } from './model';
+import {
+  AREA_LABELS,
+  DEFAULTS,
+  FURNITURE,
+  FURNITURE_KINDS,
+  isDoor,
+  newId,
+  OPENING_KINDS,
+  OPENING_LABELS,
+  type Area,
+  type AreaKind,
+  type Furniture,
+  type FurnitureKind,
+  type Opening,
+  type OpeningKind,
+  type Wall,
+} from './model';
 import { clampOpening, clampOpeningsOnWall, deleteSelection, getWall, setWallLength } from './ops';
 import { findRooms } from './rooms';
 import type { Store } from './store';
@@ -261,14 +277,29 @@ export class Panel {
   }
 
   private renderFurniture(f: Furniture) {
-    this.heading('Box');
+    this.heading(FURNITURE[f.kind].label);
     const s = this.section();
+    this.select(
+      s,
+      'Type',
+      FURNITURE_KINDS.map((k) => [k, FURNITURE[k].label]),
+      () => f.kind,
+      (v) => {
+        const kind = v as FurnitureKind;
+        const before = FURNITURE[f.kind];
+        // a name that was just the old type ("Sofa", "Chair 2", "Box 3") follows the new type
+        if (f.name.startsWith(before.label)) f.name = FURNITURE[kind].label + f.name.slice(before.label.length);
+        const d = FURNITURE[kind];
+        Object.assign(f, { kind, width: d.width, length: d.length, height: d.height, color: d.color });
+        this.renderedFor = '';
+      },
+    );
     const nameRow = document.createElement('label');
     nameRow.className = 'field';
     nameRow.innerHTML = `<span>Name</span><input type="text" />`;
     const nameInput = nameRow.querySelector('input')!;
     nameInput.value = f.name;
-    nameInput.addEventListener('change', () => this.change(() => (f.name = nameInput.value.trim() || 'Box')));
+    nameInput.addEventListener('change', () => this.change(() => (f.name = nameInput.value.trim() || FURNITURE[f.kind].label)));
     s.append(nameRow);
 
     this.numberField(s, { key: 'fw', label: 'Width', get: () => f.width, set: (v) => (f.width = v), min: 0.01 });
@@ -343,8 +374,8 @@ export class Panel {
         <li><kbd>W</kbd> Wall: click to start, click to add corners. Walls are always horizontal or vertical. Type a number + <kbd>Enter</kbd> for an exact length. Finish with <kbd>Esc</kbd>, double-click or right-click; clicking the start point closes the room.</li>
         <li><kbd>D</kbd> Door / <kbd>T</kbd> Terrace door / <kbd>N</kbd> Window / <kbd>G</kbd> Floor-to-ceiling window: click on a wall.</li>
         <li><kbd>A</kbd> Terrace / balcony: drag out the outdoor area. Its edges snap to the walls.</li>
-        <li><kbd>B</kbd> Box: click to place furniture.</li>
-        <li><kbd>V</kbd> Select: drag walls, corners, openings and boxes. Dragging a corner moves the wall lines through it. <kbd>Del</kbd> removes.</li>
+        <li><kbd>B</kbd> Furniture: pick an item in the toolbar, then click to place it.</li>
+        <li><kbd>V</kbd> Select: drag walls, corners, openings and furniture. Dragging a corner moves the wall lines through it. <kbd>Del</kbd> removes.</li>
       </ul>
       <h3>View</h3>
       <ul>
@@ -355,8 +386,8 @@ export class Panel {
       <h3>3D view</h3>
       <ul>
         <li>Left-drag to orbit, right-drag to pan, scroll to zoom. <kbd>C</kbd> toggles cutaway walls.</li>
-        <li><kbd>B</kbd> Box: click the floor to place furniture.</li>
-        <li>Click a box to select it, drag it to move. <kbd>R</kbd> rotates 90°, <kbd>Del</kbd> removes.</li>
+        <li><kbd>B</kbd> Furniture: pick an item in the toolbar, then click the floor to place it.</li>
+        <li>Click a piece of furniture to select it, drag it to move. <kbd>R</kbd> rotates 90°, <kbd>Del</kbd> removes.</li>
         <li>Set exact sizes in this panel.</li>
       </ul>`;
     this.root.append(help);

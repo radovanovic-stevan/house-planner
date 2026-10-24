@@ -1,4 +1,4 @@
-import { DEFAULTS, emptyPlan, newId, type Furniture, type OpeningKind, type Plan } from './model';
+import { DEFAULTS, emptyPlan, newFurniture, newId, type Furniture, type FurnitureKind, type OpeningKind, type Plan } from './model';
 import { addWall, wallAt } from './ops';
 
 /** A small single-story house to play with. */
@@ -57,25 +57,39 @@ export function examplePlan(): Plan {
   opening('window', 9, 8, 0.6, { sill: 1.4, height: 0.6 });
   opening('window', 7, 8, 0.9);
 
-  const box = (name: string, x: number, y: number, width: number, length: number, height: number, color: string, rotation = 0): Furniture => ({
-    id: newId('f'),
-    name,
-    x,
-    y,
-    width,
-    length,
-    height,
-    elevation: 0,
-    rotation,
-    color,
-  });
-  plan.furniture.push(
-    box('Sofa', 2.2, 3, 2.2, 0.9, 0.8, '#7d8fa6'),
-    box('Coffee table', 2.2, 1.9, 1.1, 0.6, 0.45, '#a0785a'),
-    box('Dining table', 3.6, 5.9, 1.6, 0.9, 0.75, '#a0785a'),
-    box('Kitchen counter', 0.4, 6.2, 0.6, 3, 0.9, '#d9d4c7'),
-    box('Bed', 8, 1.4, 1.6, 2.1, 0.55, '#c9b7a0'),
-    box('Wardrobe', 8, 4, 1.8, 0.6, 2.1, '#8c6d53'),
-  );
+  // rotation turns a piece's front (down on the plan at 0°): 90° faces left, 180° up, 270° right
+  const put = (kind: FurnitureKind, x: number, y: number, rotation = 0, size: Partial<Pick<Furniture, 'width' | 'length' | 'height'>> = {}) =>
+    plan.furniture.push({ ...newFurniture(kind, { x, y }, plan.furniture), rotation, ...size });
+
+  // living room
+  put('rug', 2.4, 1.8, 90);
+  put('tvUnit', 0.33, 1.8, 270);
+  put('sofa', 3.6, 1.8, 90);
+  put('coffeeTable', 2.2, 1.8, 90);
+  put('armchair', 2.2, 3.15, 180);
+  put('floorLamp', 3.7, 0.4);
+  put('plant', 5.55, 0.45);
+  // dining and kitchen
+  put('diningTable', 3.6, 5.9);
+  put('chair', 3.2, 5.25);
+  put('chair', 4.0, 5.25);
+  put('chair', 3.2, 6.55, 180);
+  put('chair', 4.0, 6.55, 180);
+  put('kitchenCounter', 0.4, 6.1, 270, { width: 2.2 });
+  put('fridge', 0.425, 7.55, 270);
+  put('plant', 5.55, 7.5);
+  // bedroom
+  put('bed', 8, 1.15, 0, { height: 0.9 });
+  put('nightstand', 6.95, 0.33);
+  put('nightstand', 9.05, 0.33);
+  put('wardrobe', 8, 4.1, 180, { width: 1 });
+  // study
+  put('desk', 7, 7.55, 180);
+  put('chair', 6.8, 6.95);
+  put('bookshelf', 6.275, 5.5, 270);
+  // bathroom
+  put('bathtub', 9, 7.525, 180);
+  put('toilet', 9.575, 5.6, 90);
+  put('washbasin', 8.325, 5.8, 270);
   return plan;
 }

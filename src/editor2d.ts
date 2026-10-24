@@ -14,7 +14,8 @@ import {
   wallDir,
   wallLength,
 } from './geometry';
-import { AREA_LABELS, DEFAULTS, isDoor, newId, OPENING_KINDS, type Area, type Furniture, type Opening, type OpeningKind, type Vec2, type Wall } from './model';
+import { drawFurnitureSymbol, isRound } from './furniture2d';
+import { AREA_LABELS, DEFAULTS, FURNITURE, isDoor, newFurniture, newId, OPENING_KINDS, type Area, type Furniture, type Opening, type OpeningKind, type Vec2, type Wall } from './model';
 import {
   addWall,
   clampOpening,
@@ -695,16 +696,7 @@ export class Editor2D {
     const store = this.store;
     const q = snapToGrid(p, store.ui.snap);
     store.checkpoint();
-    const f: Furniture = {
-      id: newId('f'),
-      name: `Box ${store.plan.furniture.length + 1}`,
-      x: q.x,
-      y: q.y,
-      ...DEFAULTS.furniture,
-      elevation: 0,
-      rotation: 0,
-      color: '#c8a27a',
-    };
+    const f = newFurniture(store.ui.furnitureKind, q, store.plan.furniture);
     store.plan.furniture.push(f);
     store.selection = { kind: 'furniture', id: f.id };
     store.ui.tool = 'select';
@@ -1015,34 +1007,54 @@ export class Editor2D {
     const sel = this.store.selection;
     for (const f of this.store.plan.furniture) {
       const corners = rectCorners(f.x, f.y, f.width, f.length, f.rotation);
-      this.pathPoly(corners);
-      ctx.globalAlpha = 0.55;
+      const selected = sel?.kind === 'furniture' && sel.id === f.id;
+      const hovered = this.hover?.kind === 'furniture' && this.hover.furniture.id === f.id;
+      const stroke = selected ? COLORS.accent : hovered ? '#555' : '#7a6a58';
+      // draw in the piece's own frame, in meters
+      const s = this.toScreen({ x: f.x, y: f.y });
+      ctx.save();
+      ctx.translate(s.x, s.y);
+      ctx.rotate((f.rotation * Math.PI) / 180);
+      ctx.scale(this.zoom, this.zoom);
+      ctx.beginPath();
+      if (isRound(f)) ctx.ellipse(0, 0, f.width / 2, f.length / 2, 0, 0, Math.PI * 2);
+      else ctx.rect(-f.width / 2, -f.length / 2, f.width, f.length);
+      ctx.globalAlpha = f.kind === 'box' ? 0.55 : 0.4;
       ctx.fillStyle = f.color;
       ctx.fill();
       ctx.globalAlpha = 1;
-      const selected = sel?.kind === 'furniture' && sel.id === f.id;
-      const hovered = this.hover?.kind === 'furniture' && this.hover.furniture.id === f.id;
-      ctx.lineWidth = selected ? 2 : 1;
-      ctx.strokeStyle = selected ? COLORS.accent : hovered ? '#555' : '#7a6a58';
+      ctx.lineWidth = (selected ? 2 : 1) / this.zoom;
+      ctx.strokeStyle = stroke;
       ctx.stroke();
-      // front edge marker so rotation is visible
-      const s0 = this.toScreen(corners[2]);
-      const s1 = this.toScreen(corners[3]);
-      ctx.lineWidth = selected ? 3 : 2;
-      ctx.beginPath();
-      ctx.moveTo(s0.x, s0.y);
-      ctx.lineTo(s1.x, s1.y);
-      ctx.stroke();
-      const c = this.toScreen({ x: f.x, y: f.y });
+      if (f.kind !== 'box' && Math.min(f.width, f.length) * this.zoom > 6) {
+        ctx.lineWidth = 1 / this.zoom;
+        drawFurnitureSymbol(ctx, f, 1 / this.zoom);
+      }
+      ctx.restore();
+      if (f.kind === 'box') {
+        // front edge marker so rotation is visible
+        const s0 = this.toScreen(corners[2]);
+        const s1 = this.toScreen(corners[3]);
+        ctx.lineWidth = selected ? 3 : 2;
+        ctx.beginPath();
+        ctx.moveTo(s0.x, s0.y);
+        ctx.lineTo(s1.x, s1.y);
+        ctx.stroke();
+      }
       const minSide = Math.min(f.width, f.length) * this.zoom;
-      if (minSide > 24) {
+      // rugs sit under other furniture, so they're only labeled when selected
+      if (minSide > 24 && (f.kind !== 'rug' || selected)) {
+        // sizes only for plain boxes and the selected piece, so symbols stay readable
+        const sizes = f.kind === 'box' || selected;
         ctx.fillStyle = '#3d3528';
         ctx.font = '11px system-ui, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(f.name, c.x, c.y - 7);
-        ctx.fillStyle = '#6d6252';
-        ctx.fillText(`${fmt(f.width)}×${fmt(f.length)}×${fmt(f.height)}`, c.x, c.y + 7);
+        ctx.fillText(f.name, s.x, sizes ? s.y - 7 : s.y);
+        if (sizes) {
+          ctx.fillStyle = '#6d6252';
+          ctx.fillText(`${fmt(f.width)}×${fmt(f.length)}×${fmt(f.height)}`, s.x, s.y + 7);
+        }
       }
     }
   }
@@ -1135,7 +1147,7 @@ export class Editor2D {
       ctx.stroke();
     } else if (tool === 'furniture') {
       const q = snapToGrid(this.cursor, this.store.ui.snap);
-      const { width, length } = DEFAULTS.furniture;
+      const { width, length } = FURNITURE[this.store.ui.furnitureKind];
       this.pathPoly(rectCorners(q.x, q.y, width, length, 0));
       ctx.setLineDash([5, 4]);
       ctx.strokeStyle = COLORS.preview;

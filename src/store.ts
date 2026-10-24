@@ -1,4 +1,4 @@
-import { emptyPlan, normalizePlan, type Plan, type Selection } from './model';
+import { emptyPlan, normalizePlan, type FurnitureKind, type Plan, type Selection } from './model';
 
 const STORAGE_KEY = 'house-planner:plan';
 const NAME_KEY = 'house-planner:name';
@@ -14,6 +14,8 @@ export interface UiState {
   view: ViewMode;
   /** Grid snapping step in meters (0 disables snapping). */
   snap: number;
+  /** What the furniture tool places. */
+  furnitureKind: FurnitureKind;
 }
 
 /**
@@ -26,7 +28,7 @@ export class Store {
   /** Name of the plan file in the project's plans/ folder, or null for an unsaved plan. */
   planName: string | null = null;
   selection: Selection = null;
-  ui: UiState = { tool: 'wall', view: '2d', snap: 0.1 };
+  ui: UiState = { tool: 'wall', view: '2d', snap: 0.1, furnitureKind: 'sofa' };
   private undoStack: string[] = [];
   private redoStack: string[] = [];
   private listeners = new Set<Listener>();

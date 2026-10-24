@@ -48,10 +48,105 @@ export interface Opening {
   flipSwing: boolean;
 }
 
+/** What a piece of furniture looks like. `box` is a plain block. The front faces local +y on the plan. */
+export type FurnitureKind =
+  | 'sofa'
+  | 'armchair'
+  | 'bed'
+  | 'nightstand'
+  | 'diningTable'
+  | 'coffeeTable'
+  | 'chair'
+  | 'desk'
+  | 'wardrobe'
+  | 'bookshelf'
+  | 'tvUnit'
+  | 'kitchenCounter'
+  | 'fridge'
+  | 'toilet'
+  | 'bathtub'
+  | 'shower'
+  | 'washbasin'
+  | 'rug'
+  | 'plant'
+  | 'floorLamp'
+  | 'box';
+
+interface FurnitureSpec {
+  label: string;
+  width: number;
+  length: number;
+  height: number;
+  color: string;
+}
+
+export const FURNITURE: Record<FurnitureKind, FurnitureSpec> = {
+  sofa: { label: 'Sofa', width: 2.2, length: 0.9, height: 0.85, color: '#7d8fa6' },
+  armchair: { label: 'Armchair', width: 0.85, length: 0.85, height: 0.85, color: '#9a8478' },
+  bed: { label: 'Bed', width: 1.6, length: 2.1, height: 1, color: '#c9d3dc' },
+  nightstand: { label: 'Nightstand', width: 0.45, length: 0.4, height: 0.55, color: '#a0785a' },
+  diningTable: { label: 'Dining table', width: 1.6, length: 0.9, height: 0.75, color: '#a0785a' },
+  coffeeTable: { label: 'Coffee table', width: 1.1, length: 0.6, height: 0.42, color: '#a0785a' },
+  chair: { label: 'Chair', width: 0.45, length: 0.5, height: 0.9, color: '#8c6d53' },
+  desk: { label: 'Desk', width: 1.4, length: 0.7, height: 0.75, color: '#d8c7aa' },
+  wardrobe: { label: 'Wardrobe', width: 1.8, length: 0.6, height: 2.1, color: '#8c6d53' },
+  bookshelf: { label: 'Bookshelf', width: 0.9, length: 0.35, height: 1.9, color: '#b08b67' },
+  tvUnit: { label: 'TV unit', width: 1.8, length: 0.45, height: 1.2, color: '#5d534a' },
+  kitchenCounter: { label: 'Kitchen counter', width: 2.4, length: 0.6, height: 0.9, color: '#e8e4da' },
+  fridge: { label: 'Fridge', width: 0.6, length: 0.65, height: 1.85, color: '#eceeef' },
+  toilet: { label: 'Toilet', width: 0.4, length: 0.65, height: 0.8, color: '#f7f7f5' },
+  bathtub: { label: 'Bathtub', width: 1.7, length: 0.75, height: 0.55, color: '#f7f7f5' },
+  shower: { label: 'Shower', width: 0.9, length: 0.9, height: 2, color: '#f7f7f5' },
+  washbasin: { label: 'Washbasin', width: 0.6, length: 0.45, height: 0.85, color: '#8c6d53' },
+  rug: { label: 'Rug', width: 2, length: 1.4, height: 0.01, color: '#b9a48a' },
+  plant: { label: 'Plant', width: 0.5, length: 0.5, height: 1.2, color: '#b5653e' },
+  floorLamp: { label: 'Floor lamp', width: 0.4, length: 0.4, height: 1.6, color: '#efe6d2' },
+  box: { label: 'Box', width: 1, length: 1, height: 0.8, color: '#c8a27a' },
+};
+
+export const FURNITURE_KINDS = Object.keys(FURNITURE) as FurnitureKind[];
+
+/** Picks a kind from a name, for plans saved before furniture had kinds (e.g. "Sofa", "Kitchen counter"). */
+export function guessFurnitureKind(name: string): FurnitureKind {
+  const n = name.toLowerCase();
+  const words: [string, FurnitureKind][] = [
+    ['coffee', 'coffeeTable'],
+    ['night', 'nightstand'],
+    ['bedside', 'nightstand'],
+    ['armchair', 'armchair'],
+    ['sofa', 'sofa'],
+    ['couch', 'sofa'],
+    ['bed', 'bed'],
+    ['table', 'diningTable'],
+    ['chair', 'chair'],
+    ['desk', 'desk'],
+    ['wardrobe', 'wardrobe'],
+    ['closet', 'wardrobe'],
+    ['shel', 'bookshelf'],
+    ['tv', 'tvUnit'],
+    ['counter', 'kitchenCounter'],
+    ['kitchen', 'kitchenCounter'],
+    ['fridge', 'fridge'],
+    ['toilet', 'toilet'],
+    ['wc', 'toilet'],
+    ['bath', 'bathtub'],
+    ['tub', 'bathtub'],
+    ['shower', 'shower'],
+    ['sink', 'washbasin'],
+    ['basin', 'washbasin'],
+    ['rug', 'rug'],
+    ['carpet', 'rug'],
+    ['plant', 'plant'],
+    ['lamp', 'floorLamp'],
+  ];
+  return words.find(([w]) => n.includes(w))?.[1] ?? 'box';
+}
+
 export interface Furniture {
   id: string;
+  kind: FurnitureKind;
   name: string;
-  /** Center of the box on the plan. */
+  /** Center of the piece on the plan. */
   x: number;
   y: number;
   /** Size along the box's local x axis (plan). */
@@ -105,7 +200,6 @@ export const DEFAULTS = {
   terraceDoor: { width: 0.9, height: 2.2, sill: 0 },
   window: { width: 1.2, height: 1.2, sill: 0.9 },
   tallWindow: { width: 1.2, height: 2.2, sill: 0 },
-  furniture: { width: 1, length: 1, height: 0.8 },
 };
 
 export function emptyPlan(): Plan {
@@ -147,18 +241,24 @@ export function normalizePlan(raw: unknown): Plan {
         flipSwing: !!o.flipSwing,
       };
     });
-  const furniture: Furniture[] = (Array.isArray(src.furniture) ? src.furniture : []).map((f) => ({
-    id: String(f.id ?? newId('f')),
-    name: String(f.name ?? 'Box'),
-    x: num(f.x, 0),
-    y: num(f.y, 0),
-    width: num(f.width, DEFAULTS.furniture.width),
-    length: num(f.length, DEFAULTS.furniture.length),
-    height: num(f.height, DEFAULTS.furniture.height),
-    elevation: num(f.elevation, 0),
-    rotation: num(f.rotation, 0),
-    color: typeof f.color === 'string' ? f.color : '#c8a27a',
-  }));
+  const furniture: Furniture[] = (Array.isArray(src.furniture) ? src.furniture : []).map((f) => {
+    const name = String(f.name ?? 'Box');
+    const kind: FurnitureKind = FURNITURE_KINDS.includes(f.kind) ? f.kind : guessFurnitureKind(name);
+    const d = FURNITURE[kind];
+    return {
+      id: String(f.id ?? newId('f')),
+      kind,
+      name,
+      x: num(f.x, 0),
+      y: num(f.y, 0),
+      width: num(f.width, d.width),
+      length: num(f.length, d.length),
+      height: num(f.height, d.height),
+      elevation: num(f.elevation, 0),
+      rotation: num(f.rotation, 0),
+      color: typeof f.color === 'string' ? f.color : d.color,
+    };
+  });
   const areas: Area[] = (Array.isArray(src.areas) ? src.areas : []).map((a) => ({
     id: String(a.id ?? newId('a')),
     kind: a.kind === 'balcony' ? 'balcony' : 'terrace',
@@ -168,4 +268,23 @@ export function normalizePlan(raw: unknown): Plan {
     length: Math.max(0.1, num(a.length, 1)),
   }));
   return { version: 1, walls, openings, furniture, areas };
+}
+
+/** A new piece of the given kind at its default size, centered at a plan point. */
+export function newFurniture(kind: FurnitureKind, at: Vec2, existing: Furniture[]): Furniture {
+  const { label, width, length, height, color } = FURNITURE[kind];
+  const same = existing.filter((f) => f.kind === kind).length;
+  return {
+    id: newId('f'),
+    kind,
+    name: same ? `${label} ${same + 1}` : label,
+    x: at.x,
+    y: at.y,
+    width,
+    length,
+    height,
+    elevation: 0,
+    rotation: 0,
+    color,
+  };
 }

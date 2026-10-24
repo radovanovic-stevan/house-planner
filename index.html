@@ -50,9 +50,16 @@
         <button data-tool="area" data-only="2d" title="Mark a terrace or balcony: drag out the area (A)">
           <svg viewBox="0 0 20 20" class="line"><rect x="3" y="5" width="14" height="10" stroke-dasharray="3 2" /><path d="M6 15l6-10M10 15l6-10M3 12l4-7" /></svg><span>Terrace</span>
         </button>
-        <button data-tool="furniture" title="Place a furniture box (B)">
-          <svg viewBox="0 0 20 20" class="line"><path d="M3 7l7-4 7 4v7l-7 4-7-4zM3 7l7 4 7-4M10 11v7" /></svg><span>Box</span>
+        <button data-tool="furniture" title="Place furniture (B)">
+          <svg viewBox="0 0 20 20" class="line"><path d="M3 9V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v3M2 9h16v5H2zM4 14v2M16 14v2" /></svg><span>Furniture</span>
         </button>
+      </div>
+
+      <div class="group">
+        <label class="snap" title="What the furniture tool places">
+          Item
+          <select id="furniture-kind"></select>
+        </label>
       </div>
 
       <div class="group">
